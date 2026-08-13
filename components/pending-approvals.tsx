@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { BrutalButton } from "@/components/brutal";
 import { useAdminUi } from "@/components/admin-ui";
+import { VisitorMediaPeek } from "@/components/visitor-media-peek";
 import { api } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 
@@ -38,24 +39,16 @@ export function PendingApprovals() {
             key={item.id}
             className="flex flex-col gap-3 rounded-[24px] border-2 border-ink bg-white p-4 sm:flex-row sm:items-center"
           >
-            {item.faceUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={item.faceUrl}
-                alt={item.displayName}
-                className="mx-auto size-14 shrink-0 rounded-full object-cover sm:mx-0"
-              />
-            ) : (
-              <div className="mx-auto size-14 shrink-0 rounded-full bg-cream sm:mx-0" />
-            )}
+            <VisitorMediaPeek
+              name={item.displayName}
+              faceUrl={item.faceUrl}
+              voiceUrl={item.voiceUrl}
+            />
             <div className="min-w-0 flex-1 text-center sm:text-left">
               <p className="font-medium break-words">{item.displayName}</p>
               <p className="text-sm text-ink/55 break-words">
                 {item.reason || "No reason"} · {timeAgo(item.createdAt)}
               </p>
-              {item.voiceUrl ? (
-                <audio className="mt-2 w-full max-w-xs" controls src={item.voiceUrl} />
-              ) : null}
             </div>
             <div className="flex w-full justify-center gap-2 sm:w-auto sm:shrink-0">
               <BrutalButton

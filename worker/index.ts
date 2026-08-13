@@ -1,13 +1,49 @@
 import "dotenv/config";
-import { Worker } from "bullmq";
+import { Worker, type Job } from "bullmq";
 import IORedis from "ioredis";
 import mongoose from "mongoose";
 import { QUEUE_NAME } from "../lib/constants";
 import { getEnv } from "../lib/env";
-import { sendImage, sendText, sendVoice } from "../lib/openwa";
+import {
+  visitorAlertText,
+  visitorImageCaption,
+  visitorTemplateVars,
+} from "../lib/notify";
+import { sendImage, sendTemplate, sendText, sendVoice } from "../lib/openwa";
 import { presignGet } from "../lib/s3";
-import type { GateNotifyJob } from "../lib/queue";
+import type { GateNotifyJob, NotifySent } from "../lib/queue";
 import { AccessLog } from "../models/AccessLog";
+
+function uniqueRecipients(recipients: GateNotifyJob["recipients"]) {
+  const seen = new Set<string>();
+  return (recipients ?? []).filter((recipient) => {
+    if (seen.has(recipient.chatId)) return false;
+    seen.add(recipient.chatId);
+    return true;
+  });
+}
+
+async function sendAlert(
+  chatId: string,
+  memberName: string,
+  visitorName: string,
+  reason: string | null
+) {
+  const env = getEnv();
+  const text = visitorAlertText(memberName, visitorName, reason);
+  try {
+    if (env.openwaTemplateId) {
+      await sendTemplate(
+        chatId,
+        visitorTemplateVars(memberName, visitorName, reason)
+      );
+      return;
+    }
+  } catch (error) {
+    console.error("template send failed, using text", error);
+  }
+  await sendText(chatId, text);
+}
 
 async function main() {
   const env = getEnv();
@@ -19,33 +55,86 @@ async function main() {
 
   const worker = new Worker<GateNotifyJob>(
     QUEUE_NAME,
-    async (job) => {
-      const { logId, caption, imageKey, voiceKey, chatIds } = job.data;
-      if (chatIds.length === 0) {
-        return;
-      }
+    async (job: Job<GateNotifyJob>) => {
+      const { logId, visitorName, reason, imageKey, voiceKey } = job.data;
+      const recipients = uniqueRecipients(job.data.recipients);
+      if (recipients.length === 0) return;
+
+      const sent: Record<string, NotifySent> = { ...(job.data.sent ?? {}) };
+      let write = Promise.resolve();
+      const persist = (chatId: string, step: keyof NotifySent) => {
+        write = write.then(async () => {
+          sent[chatId] = { ...sent[chatId], [step]: true };
+          await job.updateData({ ...job.data, sent });
+        });
+        return write;
+      };
+      const done = (chatId: string, step: keyof NotifySent) =>
+        Boolean(sent[chatId]?.[step]);
 
       const imageUrl = imageKey ? await presignGet(imageKey) : null;
       const voiceUrl = voiceKey ? await presignGet(voiceKey) : null;
+      const reasonOnText = imageUrl ? null : reason;
+      const imageCaption = visitorImageCaption(reason);
 
-      const primary = chatIds.map(async (chatId) => {
-        if (imageUrl) {
-          await sendImage(chatId, imageUrl, caption);
-          return;
-        }
-        await sendText(chatId, caption);
-      });
-      await Promise.all(primary);
+      const failures: unknown[] = [];
+
+      await Promise.all(
+        recipients.map(async (recipient) => {
+          if (done(recipient.chatId, "text")) return;
+          try {
+            await sendAlert(
+              recipient.chatId,
+              recipient.name,
+              visitorName,
+              reasonOnText
+            );
+            await persist(recipient.chatId, "text");
+          } catch (error) {
+            console.error(`text failed for ${recipient.chatId}`, error);
+            failures.push(error);
+          }
+        })
+      );
+
+      if (imageUrl) {
+        await Promise.all(
+          recipients.map(async (recipient) => {
+            if (done(recipient.chatId, "image")) return;
+            try {
+              await sendImage(recipient.chatId, imageUrl, imageCaption);
+              await persist(recipient.chatId, "image");
+            } catch (error) {
+              console.error(`image failed for ${recipient.chatId}`, error);
+              failures.push(error);
+            }
+          })
+        );
+      }
 
       if (voiceUrl) {
-        await Promise.all(chatIds.map((chatId) => sendVoice(chatId, voiceUrl)));
+        await Promise.all(
+          recipients.map(async (recipient) => {
+            if (done(recipient.chatId, "voice")) return;
+            try {
+              await sendVoice(recipient.chatId, voiceUrl);
+              await persist(recipient.chatId, "voice");
+            } catch (error) {
+              console.error(`voice failed for ${recipient.chatId}`, error);
+            }
+          })
+        );
+      }
+
+      if (failures.length) {
+        throw failures[0];
       }
 
       await AccessLog.findByIdAndUpdate(logId, { notifiedAt: new Date() });
     },
     {
       connection,
-      concurrency: 2,
+      concurrency: 1,
     }
   );
 

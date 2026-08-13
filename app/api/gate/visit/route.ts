@@ -1,11 +1,11 @@
 import { connectDB } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/api";
 import { enqueueGateNotify } from "@/lib/queue";
-import { labChatIds, visitorCaption } from "@/lib/notify";
+import { labRecipients, visitorName } from "@/lib/notify";
 import { uploadBuffer } from "@/lib/s3";
 import { extFromType, fileToBuffer } from "@/lib/media";
+import { toOggOpus } from "@/lib/to-ogg";
 import { AccessLog } from "@/models/AccessLog";
-import { DEFAULT_VISITOR_NAME } from "@/lib/constants";
 
 export async function POST(request: Request) {
   const form = await request.formData().catch(() => null);
@@ -13,8 +13,7 @@ export async function POST(request: Request) {
     return jsonError("Invalid form");
   }
 
-  const name =
-    String(form.get("name") ?? "").trim() || DEFAULT_VISITOR_NAME;
+  const name = visitorName(String(form.get("name") ?? ""));
   const reason = String(form.get("reason") ?? "").trim() || null;
   const face = form.get("face");
   const voice = form.get("voice");
@@ -38,12 +37,20 @@ export async function POST(request: Request) {
     if (voice.size > 8 * 1024 * 1024) {
       return jsonError("Voice note must be under 8MB");
     }
-    voiceKey = await uploadBuffer({
-      body: await fileToBuffer(voice),
-      contentType: voice.type || "audio/webm",
-      folder: "voice",
-      ext: extFromType(voice.type, "webm"),
-    });
+    const raw = await fileToBuffer(voice);
+    const ext = extFromType(voice.type, "webm");
+    try {
+      const ogg = await toOggOpus(raw, ext);
+      voiceKey = await uploadBuffer({
+        body: ogg,
+        contentType: "audio/ogg",
+        folder: "voice",
+        ext: "ogg",
+      });
+    } catch (error) {
+      console.error("voice convert failed", error);
+      return jsonError("Could not process voice note");
+    }
   }
 
   await connectDB();
@@ -58,20 +65,21 @@ export async function POST(request: Request) {
     voiceKey,
   });
 
-  const chatIds = await labChatIds();
+  const recipients = await labRecipients();
   await enqueueGateNotify({
     logId: String(log._id),
-    caption: visitorCaption(name, reason),
+    visitorName: name,
+    reason,
     imageKey: faceKey,
-    voiceKey: voiceKey,
-    chatIds,
+    voiceKey,
+    recipients,
   });
 
   return jsonOk({
     id: String(log._id),
     name,
     at: log.createdAt,
-    notified: chatIds.length,
+    notified: recipients.length,
     status: "pending",
   });
 }

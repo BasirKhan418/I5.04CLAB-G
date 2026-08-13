@@ -1,7 +1,6 @@
 import { connectDB } from "@/lib/db";
 import { jsonOk, requireSession } from "@/lib/api";
 import { AccessLog } from "@/models/AccessLog";
-import { presignGet } from "@/lib/s3";
 
 export async function GET(request: Request) {
   const auth = await requireSession();
@@ -21,20 +20,18 @@ export async function GET(request: Request) {
     .limit(limit)
     .lean();
 
-  const data = await Promise.all(
-    logs.map(async (log) => ({
-      id: String(log._id),
-      kind: log.kind,
-      displayName: log.displayName,
-      reason: log.reason,
-      direction: log.direction,
-      method: log.method,
-      createdAt: log.createdAt,
-      notifiedAt: log.notifiedAt,
-      faceUrl: log.faceKey ? await presignGet(log.faceKey, 3600) : null,
-      voiceUrl: log.voiceKey ? await presignGet(log.voiceKey, 3600) : null,
-    }))
-  );
+  const data = logs.map((log) => ({
+    id: String(log._id),
+    kind: log.kind,
+    displayName: log.displayName,
+    reason: log.reason,
+    direction: log.direction,
+    method: log.method,
+    createdAt: log.createdAt,
+    notifiedAt: log.notifiedAt,
+    faceUrl: log.faceKey ? `/api/gate/media/${log._id}?kind=face` : null,
+    voiceUrl: log.voiceKey ? `/api/gate/media/${log._id}?kind=voice` : null,
+  }));
 
   return jsonOk(data);
 }

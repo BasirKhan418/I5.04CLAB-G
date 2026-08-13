@@ -272,6 +272,25 @@ export function Kiosk() {
     );
   }
 
+  function resetToStart() {
+    clearVisitorCache();
+    setMode(null);
+    setMember(null);
+    setRequestStatus(null);
+    setRequestId(null);
+    setCelebrate(null);
+    setConfetti(false);
+    celebratedRef.current = false;
+    setName("");
+    setReason("");
+    setFace(null);
+    setVoice(null);
+    setFormKey((n) => n + 1);
+    setExtras(false);
+    setError("");
+    setMessage("");
+  }
+
   async function submitVisitor(e: React.FormEvent) {
     e.preventDefault();
     setBusy("visit");
@@ -391,6 +410,7 @@ export function Kiosk() {
           </div>
         ) : (
           <>
+            {requestStatus === "approved" ? null : (
             <button
               type="button"
               className="mt-4 text-sm font-semibold text-ink/50 underline-offset-4 hover:text-ink hover:underline"
@@ -403,6 +423,7 @@ export function Kiosk() {
             >
               ← Not this — change
             </button>
+            )}
             <BrutalCard className="rise-in mt-4 w-full p-5 sm:p-7">
           {mode === "member" && member ? (
             <div className="flex flex-col items-center text-center">
@@ -561,28 +582,13 @@ export function Kiosk() {
                 <p className="mt-2 text-sm text-ink/70">
                   Walk through. Welcome to I5.04C Lab.
                 </p>
-                <BrutalButton
-                  soft
+                <button
                   type="button"
-                  variant="white"
-                  className="mt-5"
-                  onClick={() => {
-                    clearVisitorCache();
-                    setRequestStatus(null);
-                    setRequestId(null);
-                    setCelebrate(null);
-                    setConfetti(false);
-                    celebratedRef.current = false;
-                    setName("");
-                    setReason("");
-                    setFace(null);
-                    setVoice(null);
-                    setFormKey((n) => n + 1);
-                    setExtras(false);
-                  }}
+                  className="mt-5 text-sm font-semibold text-ink/50 underline-offset-4 hover:text-ink hover:underline"
+                  onClick={resetToStart}
                 >
-                  Done
-                </BrutalButton>
+                  Ask again
+                </button>
               </div>
             ) : requestStatus === "denied" ? (
               <div className="text-center">

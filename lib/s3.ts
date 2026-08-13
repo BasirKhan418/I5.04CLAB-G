@@ -42,9 +42,28 @@ export async function uploadBuffer(opts: {
       Key: key,
       Body: opts.body,
       ContentType: opts.contentType,
+      ContentDisposition: "inline",
     })
   );
   return key;
+}
+
+export async function getObject(key: string) {
+  const env = getEnv();
+  const res = await getS3().send(
+    new GetObjectCommand({
+      Bucket: env.awsBucketName,
+      Key: key,
+    })
+  );
+  if (!res.Body) {
+    throw new Error("Empty S3 object");
+  }
+  return {
+    stream: res.Body.transformToWebStream(),
+    contentType: res.ContentType ?? "application/octet-stream",
+    contentLength: res.ContentLength,
+  };
 }
 
 export async function presignGet(key: string, expiresIn = 60 * 60 * 6) {
