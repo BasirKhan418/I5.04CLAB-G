@@ -60,6 +60,19 @@ Confirm this WhatsApp so you get visitor alerts from the lab.
 ${EMAIL_SIGN_OFF}`;
 }
 
+export function signInOtpText(otp: string, name?: string | null) {
+  const hi = name?.trim() || "there";
+  return `🔐 *${LAB_SHORT} sign-in code*
+
+Hi ${hi},
+
+Your one-time code is *${otp}*.
+
+Use it on the kiosk or dashboard sign-in. It expires in a few minutes.
+
+${EMAIL_SIGN_OFF}`;
+}
+
 export function visitorImageCaption(reason?: string | null) {
   const text = reason?.trim();
   return text || undefined;

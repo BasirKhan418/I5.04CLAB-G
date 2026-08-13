@@ -85,6 +85,9 @@ export async function POST(request: Request) {
   }
 
   const role = parsed.data.role ?? "member";
+  if (role === "superadmin") {
+    return jsonError("There can be only one superadmin");
+  }
 
   const pin = generatePin();
   const user = await User.create({

@@ -50,6 +50,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     return jsonError("Only a superadmin can edit a superadmin");
   }
 
+  if (parsed.data.role === "superadmin" && user.role !== "superadmin") {
+    return jsonError("There can be only one superadmin");
+  }
+
   if (user.role === "superadmin" && parsed.data.role !== "superadmin") {
     const others = await User.countDocuments({
       role: "superadmin",

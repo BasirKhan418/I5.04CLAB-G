@@ -14,6 +14,7 @@ export default function LoginForm() {
   const [pin, setPin] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpHint, setOtpHint] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -39,15 +40,25 @@ export default function LoginForm() {
     setError("");
     setOtpSent(true);
     setPin("");
-    const res = await api("/api/auth/otp/request", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
+    const res = await api<{ email?: boolean; whatsapp?: boolean }>(
+      "/api/auth/otp/request",
+      {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }
+    );
     setBusy(null);
     if (!res.ok) {
       setOtpSent(false);
       setError(res.error);
       return;
+    }
+    if (res.data.email && res.data.whatsapp) {
+      setOtpHint("Code sent to email and WhatsApp.");
+    } else if (res.data.whatsapp) {
+      setOtpHint("Code sent to WhatsApp.");
+    } else {
+      setOtpHint("Code sent to email.");
     }
   }
 
@@ -89,7 +100,7 @@ export default function LoginForm() {
           {otpSent ? (
             <BrutalInput
               inputMode="numeric"
-              placeholder="6-digit email code"
+              placeholder="6-digit code"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               autoFocus
@@ -135,11 +146,14 @@ export default function LoginForm() {
               className="w-full"
               onClick={sendOtp}
             >
-              Email me an OTP instead
+              Send OTP to email and WhatsApp
             </BrutalButton>
           </>
         )}
 
+        {otpHint && !error ? (
+          <p className="mt-4 text-sm text-ink/70">{otpHint}</p>
+        ) : null}
         {error ? <p className="mt-4 text-sm text-lab-red">{error}</p> : null}
         <p className="mt-6 text-center text-sm">
           Forgot a card?{" "}

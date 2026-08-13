@@ -46,6 +46,7 @@ export function Kiosk() {
   const [pin, setPin] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [otpHint, setOtpHint] = useState("");
   const [name, setName] = useState("");
   const [reason, setReason] = useState("");
   const [face, setFace] = useState<File | null>(null);
@@ -220,14 +221,26 @@ export function Kiosk() {
     setOtpSent(true);
     setPin("");
     await unlockKioskAudio();
-    const res = await api("/api/auth/otp/request", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
+    const res = await api<{ email?: boolean; whatsapp?: boolean }>(
+      "/api/auth/otp/request",
+      {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }
+    );
     setBusy(null);
     if (!res.ok) {
       setOtpSent(false);
+      setOtpHint("");
       setError(res.error);
+      return;
+    }
+    if (res.data.email && res.data.whatsapp) {
+      setOtpHint("Code sent to email and WhatsApp.");
+    } else if (res.data.whatsapp) {
+      setOtpHint("Code sent to WhatsApp.");
+    } else {
+      setOtpHint("Code sent to email.");
     }
   }
 
@@ -554,7 +567,7 @@ export function Kiosk() {
               </label>
               {otpSent ? (
                 <label className="block text-xs font-medium text-ink/50">
-                  Email code
+                  Email / WhatsApp code
                   <BrutalInput
                     className="mt-1"
                     inputMode="numeric"
@@ -563,6 +576,11 @@ export function Kiosk() {
                     onChange={(e) => setOtp(e.target.value)}
                     autoFocus
                   />
+                  {otpHint ? (
+                    <span className="mt-1 block text-xs font-normal text-ink/55">
+                      {otpHint}
+                    </span>
+                  ) : null}
                 </label>
               ) : (
                 <label className="block text-xs font-medium text-ink/50">
@@ -587,7 +605,7 @@ export function Kiosk() {
                   className="w-full"
                   onClick={sendOtp}
                 >
-                  Email me a code instead
+                  Send OTP to email and WhatsApp
                 </BrutalButton>
               )}
               <BrutalButton
