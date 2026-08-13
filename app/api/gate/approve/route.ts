@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db";
 import { jsonError, jsonOk, requireSession } from "@/lib/api";
 import { AccessLog } from "@/models/AccessLog";
+import { publishGateEvent } from "@/lib/realtime";
 
 const bodySchema = z.object({
   id: z.string().min(1),
@@ -40,6 +41,12 @@ export async function POST(request: Request) {
     log.direction = "in";
   }
   await log.save();
+  await publishGateEvent({
+    type: "request",
+    id: String(log._id),
+    status: log.status,
+  });
+  await publishGateEvent({ type: "pending" });
 
   return jsonOk({
     id: String(log._id),

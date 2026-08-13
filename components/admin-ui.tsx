@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { AddMemberModal } from "@/components/add-member-modal";
+import { useGateStream } from "@/hooks/use-gate-stream";
 import { api, cn } from "@/lib/utils";
 
 export type PendingItem = {
@@ -80,9 +81,15 @@ export function AdminUiProvider({
     void refreshPending();
     const timer = window.setInterval(() => {
       void refreshPending();
-    }, 4000);
+    }, 15000);
     return () => window.clearInterval(timer);
   }, [isAdmin, refreshPending]);
+
+  useGateStream(isAdmin, null, (event) => {
+    if (event.type === "pending") {
+      void refreshPending();
+    }
+  });
 
   const toast = useCallback((message: string, tone: ToastTone = "ok") => {
     const id = Date.now() + Math.random();

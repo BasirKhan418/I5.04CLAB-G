@@ -6,6 +6,7 @@ import { uploadBuffer } from "@/lib/s3";
 import { extFromType, fileToBuffer } from "@/lib/media";
 import { toOggOpus } from "@/lib/to-ogg";
 import { AccessLog } from "@/models/AccessLog";
+import { publishGateEvent } from "@/lib/realtime";
 
 export async function POST(request: Request) {
   const form = await request.formData().catch(() => null);
@@ -74,6 +75,12 @@ export async function POST(request: Request) {
     voiceKey,
     recipients,
   });
+  await publishGateEvent({
+    type: "request",
+    id: String(log._id),
+    status: "pending",
+  });
+  await publishGateEvent({ type: "pending" });
 
   return jsonOk({
     id: String(log._id),

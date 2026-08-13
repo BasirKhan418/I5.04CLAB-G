@@ -25,6 +25,7 @@ import {
   writeVisitorCache,
   type VisitorWaitStatus,
 } from "@/lib/kiosk-visitor-cache";
+import { useGateStream } from "@/hooks/use-gate-stream";
 import { api, cn } from "@/lib/utils";
 
 type Member = {
@@ -149,12 +150,22 @@ export function Kiosk() {
       }
     }
     void tick();
-    const timer = window.setInterval(tick, 2500);
+    const timer = window.setInterval(tick, 15000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
   }, [requestId, requestStatus]);
+
+  useGateStream(
+    Boolean(requestId && requestStatus === "pending"),
+    requestId,
+    (event) => {
+      if (event.type === "request") {
+        setRequestStatus(event.status);
+      }
+    }
+  );
 
   useEffect(() => {
     if (requestStatus !== "approved" || celebratedRef.current) return;

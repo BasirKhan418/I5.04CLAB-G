@@ -13,3 +13,4 @@ export const OTP_RATE_WINDOW = 15 * 60;
 export const TIMEZONE = "Asia/Kolkata";
 export const S3_PREFIX = "icccc-qr";
 export const QUEUE_NAME = "gate-notify";
+export const GATE_CHANNEL = "lab-gate";
