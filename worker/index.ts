@@ -10,6 +10,7 @@ import {
   visitorTemplateVars,
 } from "../lib/notify";
 import { sendImage, sendTemplate, sendText, sendVoice } from "../lib/openwa";
+import { publicAllowUrl } from "../lib/allow-link";
 import { presignGet } from "../lib/s3";
 import type { GateNotifyJob, NotifySent } from "../lib/queue";
 import { AccessLog } from "../models/AccessLog";
@@ -121,6 +122,23 @@ async function main() {
               await persist(recipient.chatId, "voice");
             } catch (error) {
               console.error(`voice failed for ${recipient.chatId}`, error);
+            }
+          })
+        );
+      }
+
+      const allowUrl = publicAllowUrl(logId);
+      if (allowUrl) {
+        const linkText = `Tap to allow ${visitorName}:\n${allowUrl}`;
+        await Promise.all(
+          recipients.map(async (recipient) => {
+            if (done(recipient.chatId, "link")) return;
+            try {
+              await sendText(recipient.chatId, linkText);
+              await persist(recipient.chatId, "link");
+            } catch (error) {
+              console.error(`link failed for ${recipient.chatId}`, error);
+              failures.push(error);
             }
           })
         );

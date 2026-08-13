@@ -1,10 +1,6 @@
-import mongoose from "mongoose";
 import { z } from "zod";
-import { connectDB } from "@/lib/db";
 import { jsonError, jsonOk, requireSession } from "@/lib/api";
-import { AccessLog } from "@/models/AccessLog";
-import { publishDoorOpen } from "@/lib/door";
-import { publishGateEvent } from "@/lib/realtime";
+import { decideVisitorRequest } from "@/lib/gate-decide";
 
 const bodySchema = z.object({
   id: z.string().min(1),
@@ -22,39 +18,17 @@ export async function POST(request: Request) {
     return jsonError("Pick a request to approve or deny");
   }
 
-  await connectDB();
-  const log = await AccessLog.findById(parsed.data.id);
-  if (!log || log.kind !== "visitor") {
-    return jsonError("Request not found", 404);
-  }
-  if (log.status !== "pending") {
-    return jsonOk({
-      id: String(log._id),
-      status: log.status,
-      already: true,
-    });
-  }
-
-  log.status = parsed.data.action === "approve" ? "approved" : "denied";
-  log.approvedBy = new mongoose.Types.ObjectId(auth.session.sub);
-  log.approvedAt = new Date();
-  if (parsed.data.action === "approve") {
-    log.direction = "in";
-  }
-  await log.save();
-  await publishGateEvent({
-    type: "request",
-    id: String(log._id),
-    status: log.status,
+  const result = await decideVisitorRequest({
+    id: parsed.data.id,
+    action: parsed.data.action,
+    actorId: auth.session.sub,
   });
-  await publishGateEvent({ type: "pending" });
-  if (log.status === "approved") {
-    await publishDoorOpen("visitor-approve");
+  if (!result.ok) {
+    return jsonError(result.error, result.status);
   }
-
   return jsonOk({
-    id: String(log._id),
-    status: log.status,
-    already: false,
+    id: result.id,
+    status: result.status,
+    already: result.already,
   });
 }

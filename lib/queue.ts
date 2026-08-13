@@ -11,6 +11,7 @@ export type NotifySent = {
   text?: boolean;
   image?: boolean;
   voice?: boolean;
+  link?: boolean;
 };
 
 export type GateNotifyJob = {

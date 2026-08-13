@@ -29,5 +29,6 @@ export function getEnv() {
     doorDeviceToken: process.env.DOOR_DEVICE_TOKEN?.trim() ?? "",
     doorWsPort: Number(process.env.DOOR_WS_PORT ?? "8787"),
     doorOpenMs: Number(process.env.DOOR_OPEN_MS ?? "2500"),
+    publicHost: (process.env.PUBLIC_HOST ?? "").replace(/\/$/, ""),
   };
 }
