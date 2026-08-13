@@ -1,0 +1,125 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { AddMemberModal } from "@/components/add-member-modal";
+import { api, cn } from "@/lib/utils";
+
+export type PendingItem = {
+  id: string;
+  displayName: string;
+  reason: string | null;
+  createdAt: string;
+  faceUrl: string | null;
+  voiceUrl: string | null;
+};
+
+type ToastTone = "ok" | "err";
+
+type Toast = {
+  id: number;
+  message: string;
+  tone: ToastTone;
+};
+
+type AdminUi = {
+  isAdmin: boolean;
+  openAddMember: () => void;
+  pending: PendingItem[];
+  pendingCount: number;
+  refreshPending: () => Promise<void>;
+  toast: (message: string, tone?: ToastTone) => void;
+};
+
+const AdminUiContext = createContext<AdminUi | null>(null);
+
+export function useAdminUi() {
+  const ctx = useContext(AdminUiContext);
+  if (!ctx) {
+    throw new Error("useAdminUi must be used inside AdminUiProvider");
+  }
+  return ctx;
+}
+
+export function AdminUiProvider({
+  isAdmin,
+  children,
+}: {
+  isAdmin: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<PendingItem[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const openAddMember = useCallback(() => setOpen(true), []);
+
+  const refreshPending = useCallback(async () => {
+    if (!isAdmin) return;
+    const res = await api<PendingItem[]>("/api/gate/pending");
+    if (res.ok) {
+      setPending(
+        res.data.map((item) => ({
+          ...item,
+          createdAt:
+            typeof item.createdAt === "string"
+              ? item.createdAt
+              : new Date(item.createdAt).toISOString(),
+          reason: item.reason ?? null,
+        }))
+      );
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    void refreshPending();
+    const timer = window.setInterval(() => {
+      void refreshPending();
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [isAdmin, refreshPending]);
+
+  const toast = useCallback((message: string, tone: ToastTone = "ok") => {
+    const id = Date.now() + Math.random();
+    setToasts((current) => [...current, { id, message, tone }]);
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((item) => item.id !== id));
+    }, 3500);
+  }, []);
+
+  return (
+    <AdminUiContext.Provider
+      value={{
+        isAdmin,
+        openAddMember,
+        pending,
+        pendingCount: pending.length,
+        refreshPending,
+        toast,
+      }}
+    >
+      {children}
+      {isAdmin ? (
+        <AddMemberModal open={open} onOpenChange={setOpen} toast={toast} />
+      ) : null}
+      <div className="pointer-events-none fixed right-4 bottom-4 z-[80] flex w-[min(100%-2rem,20rem)] flex-col gap-2">
+        {toasts.map((item) => (
+          <p
+            key={item.id}
+            className={cn(
+              "pointer-events-auto rounded-2xl border-2 border-ink bg-white px-4 py-3 text-sm font-medium",
+              item.tone === "err" && "border-lab-red"
+            )}
+          >
+            {item.message}
+          </p>
+        ))}
+      </div>
+    </AdminUiContext.Provider>
+  );
+}
