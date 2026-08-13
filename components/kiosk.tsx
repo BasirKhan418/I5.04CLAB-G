@@ -63,6 +63,7 @@ export function Kiosk() {
   const [formKey, setFormKey] = useState(0);
   const [extras, setExtras] = useState(false);
   const [booted, setBooted] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const celebratedRef = useRef(false);
   const draftTimer = useRef(0);
 
@@ -88,6 +89,22 @@ export function Kiosk() {
     }
     setBooted(true);
   }, []);
+
+  async function resumeMember() {
+    const res = await api<Member>("/api/gate/identify");
+    if (!res.ok) {
+      setSignedIn(false);
+      return false;
+    }
+    setSignedIn(true);
+    setMember(res.data);
+    return true;
+  }
+
+  useEffect(() => {
+    if (!booted) return;
+    void resumeMember();
+  }, [booted]);
 
   useEffect(() => {
     if (!booted) return;
@@ -234,6 +251,7 @@ export function Kiosk() {
       return;
     }
     setMember(res.data);
+    setSignedIn(true);
   }
 
   async function enterOrClose(direction: "in" | "out") {
@@ -406,16 +424,28 @@ export function Kiosk() {
             </button>
             <button
               type="button"
-              className="rounded-[28px] border-2 border-ink bg-lab-red p-5 text-left text-white shadow-[6px_6px_0_#111] transition-transform hover:-translate-y-0.5"
-              onClick={() => {
-                setMode("member");
+              className="rounded-[28px] border-2 border-ink bg-lab-red p-5 text-left text-white shadow-[6px_6px_0_#111] transition-transform hover:-translate-y-0.5 disabled:opacity-70"
+              disabled={busy === "resume"}
+              onClick={async () => {
                 setError("");
                 setMessage("");
+                await unlockKioskAudio();
+                if (member) {
+                  setMode("member");
+                  void resumeMember();
+                  return;
+                }
+                setBusy("resume");
+                await resumeMember();
+                setBusy(null);
+                setMode("member");
               }}
             >
               <p className="font-heading text-2xl">I work here</p>
               <p className="mt-1 text-sm text-white/80">
-                Sign in to Enter or Close.
+                {signedIn && member
+                  ? `Continue as ${member.name}. Enter or Close.`
+                  : "Sign in to Enter or Close."}
               </p>
             </button>
           </div>
@@ -429,7 +459,6 @@ export function Kiosk() {
                 setMode(null);
                 setError("");
                 setMessage("");
-                setMember(null);
               }}
             >
               ← Not this — change

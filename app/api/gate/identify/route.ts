@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { connectDB } from "@/lib/db";
-import { jsonError, jsonOk } from "@/lib/api";
+import { jsonError, jsonOk, requireSession } from "@/lib/api";
 import { consumeOtp } from "@/lib/otp";
 import { isValidPin, verifyPin } from "@/lib/pin";
 import { createSession } from "@/lib/session";
@@ -8,6 +8,57 @@ import { User } from "@/models/User";
 import { AccessLog } from "@/models/AccessLog";
 import { isCurrentlyIn } from "@/lib/hours";
 import { presignGet } from "@/lib/s3";
+
+async function memberPayload(user: {
+  _id: unknown;
+  name: string;
+  email: string;
+  faceKey?: string | null;
+}) {
+  const events = await AccessLog.find({
+    kind: "member",
+    userId: user._id,
+  }).select("direction createdAt");
+
+  return {
+    id: String(user._id),
+    name: user.name,
+    email: user.email,
+    faceUrl: user.faceKey ? await presignGet(user.faceKey, 3600) : null,
+    inside: isCurrentlyIn(
+      events.map((log) => ({
+        direction: log.direction as "in" | "out",
+        createdAt: log.createdAt,
+      }))
+    ),
+    enteredAt: (() => {
+      const sorted = [...events].sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+      );
+      let lastIn: Date | null = null;
+      for (const log of sorted) {
+        if (log.direction === "in") lastIn = log.createdAt;
+        if (log.direction === "out") lastIn = null;
+      }
+      return lastIn ? lastIn.toISOString() : null;
+    })(),
+  };
+}
+
+export async function GET() {
+  const auth = await requireSession();
+  if ("response" in auth) {
+    return auth.response;
+  }
+
+  await connectDB();
+  const user = await User.findById(auth.session.sub);
+  if (!user) {
+    return jsonError("Account missing", 401);
+  }
+
+  return jsonOk(await memberPayload(user));
+}
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -48,32 +99,5 @@ export async function POST(request: Request) {
     name: user.name,
   });
 
-  const events = await AccessLog.find({
-    kind: "member",
-    userId: user._id,
-  }).select("direction createdAt");
-
-  return jsonOk({
-    id: String(user._id),
-    name: user.name,
-    email: user.email,
-    faceUrl: user.faceKey ? await presignGet(user.faceKey, 3600) : null,
-    inside: isCurrentlyIn(
-      events.map((log) => ({
-        direction: log.direction as "in" | "out",
-        createdAt: log.createdAt,
-      }))
-    ),
-    enteredAt: (() => {
-      const sorted = [...events].sort(
-        (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-      );
-      let lastIn: Date | null = null;
-      for (const log of sorted) {
-        if (log.direction === "in") lastIn = log.createdAt;
-        if (log.direction === "out") lastIn = null;
-      }
-      return lastIn ? lastIn.toISOString() : null;
-    })(),
-  });
+  return jsonOk(await memberPayload(user));
 }
