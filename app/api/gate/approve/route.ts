@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db";
 import { jsonError, jsonOk, requireSession } from "@/lib/api";
 import { AccessLog } from "@/models/AccessLog";
+import { publishDoorOpen } from "@/lib/door";
 import { publishGateEvent } from "@/lib/realtime";
 
 const bodySchema = z.object({
@@ -47,6 +48,9 @@ export async function POST(request: Request) {
     status: log.status,
   });
   await publishGateEvent({ type: "pending" });
+  if (log.status === "approved") {
+    await publishDoorOpen("visitor-approve");
+  }
 
   return jsonOk({
     id: String(log._id),

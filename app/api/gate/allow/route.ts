@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 import { nextMemberDirection } from "@/lib/access";
 import { User } from "@/models/User";
 import { AccessLog } from "@/models/AccessLog";
+import { publishDoorOpen } from "@/lib/door";
 
 const bodySchema = z.object({
   email: z.string().email().optional(),
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       kind: "member",
       direction: "in",
     }).sort({ createdAt: -1 });
+    await publishDoorOpen("member-in");
     return jsonOk({
       direction: "in",
       name: user.name,
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
     });
   }
   if (direction === "out" && next === "in") {
+    await publishDoorOpen("member-out");
     return jsonOk({
       direction: "out",
       name: user.name,
@@ -86,6 +89,8 @@ export async function POST(request: Request) {
     method,
     status: "approved",
   });
+
+  await publishDoorOpen(direction === "in" ? "member-in" : "member-out");
 
   return jsonOk({
     direction,

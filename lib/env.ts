@@ -26,5 +26,8 @@ export function getEnv() {
     smtpPass: required("SMTP_PASS"),
     mailFrom: required("MAIL_FROM"),
     superadminEmail: process.env.SUPERADMIN_EMAIL?.trim().toLowerCase() ?? "",
+    doorDeviceToken: process.env.DOOR_DEVICE_TOKEN?.trim() ?? "",
+    doorWsPort: Number(process.env.DOOR_WS_PORT ?? "8787"),
+    doorOpenMs: Number(process.env.DOOR_OPEN_MS ?? "2500"),
   };
 }
