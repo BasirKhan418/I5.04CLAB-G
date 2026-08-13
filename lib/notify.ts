@@ -1,4 +1,4 @@
-import { DEFAULT_VISITOR_NAME } from "@/lib/constants";
+import { DEFAULT_VISITOR_NAME, EMAIL_SIGN_OFF, LAB_SHORT } from "@/lib/constants";
 import { toChatId } from "@/lib/phone";
 import { User } from "@/models/User";
 
@@ -48,6 +48,16 @@ Thank you!
 
 Regards,
 *I5.04C Lab Developer Team*`;
+}
+
+export function phoneVerifyText(otp: string) {
+  return `🔐 *${LAB_SHORT} number check*
+
+Your code is *${otp}*.
+
+Confirm this WhatsApp so you get visitor alerts from the lab.
+
+${EMAIL_SIGN_OFF}`;
 }
 
 export function visitorImageCaption(reason?: string | null) {

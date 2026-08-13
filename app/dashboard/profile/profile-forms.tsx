@@ -90,8 +90,8 @@ export function ProfileForms({
       return;
     }
     setOtpSent(true);
-    setOk("Code sent to email and the new WhatsApp number.");
-    toast("Code sent.");
+    setOk("Code sent to that WhatsApp. Enter it to start getting visitor alerts.");
+    toast("WhatsApp code sent.");
   }
 
   async function verifyPhone(e: React.FormEvent) {
@@ -109,8 +109,9 @@ export function ProfileForms({
       toast(res.error, "err");
       return;
     }
-    setOk("Number updated.");
-    toast("Number updated.");
+    setOk("WhatsApp confirmed. You will get visitor alerts on this number.");
+    toast("WhatsApp confirmed.");
+    setOtp("");
     setOtpSent(false);
     router.refresh();
   }
@@ -194,7 +195,8 @@ export function ProfileForms({
       >
         <h2 className="font-medium">WhatsApp number</h2>
         <p className="text-sm text-ink/55">
-          Optional. 10 digits; country code 91 is added.
+          We send a code to this WhatsApp. Confirm it so you get visitor
+          alerts. 10 digits; country code 91 is added.
         </p>
         <label className="block text-xs font-medium text-ink/50">
           Number
@@ -202,7 +204,13 @@ export function ProfileForms({
             className="mt-1"
             placeholder="10-digit number"
             value={newPhone}
-            onChange={(e) => setNewPhone(e.target.value)}
+            onChange={(e) => {
+              setNewPhone(e.target.value);
+              if (otpSent) {
+                setOtpSent(false);
+                setOtp("");
+              }
+            }}
             inputMode="numeric"
             autoComplete="tel"
           />
@@ -221,9 +229,24 @@ export function ProfileForms({
           </label>
         ) : null}
         {otpSent ? (
-          <BrutalButton type="submit" loading={busy === "verify"} disabled={Boolean(busy)}>
-            Confirm number
-          </BrutalButton>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <BrutalButton
+              type="submit"
+              loading={busy === "verify"}
+              disabled={Boolean(busy) || otp.trim().length !== 6}
+            >
+              Confirm number
+            </BrutalButton>
+            <BrutalButton
+              type="button"
+              variant="white"
+              loading={busy === "phone"}
+              disabled={Boolean(busy)}
+              onClick={requestPhone}
+            >
+              Resend code
+            </BrutalButton>
+          </div>
         ) : (
           <BrutalButton
             type="button"
@@ -231,7 +254,7 @@ export function ProfileForms({
             disabled={Boolean(busy)}
             onClick={requestPhone}
           >
-            Update WhatsApp
+            Send WhatsApp code
           </BrutalButton>
         )}
       </form>

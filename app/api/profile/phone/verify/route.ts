@@ -40,6 +40,9 @@ export async function POST(request: Request) {
     return jsonError("That number is already on the roster");
   }
 
-  await User.findByIdAndUpdate(auth.session.sub, { phone });
+  await User.findByIdAndUpdate(auth.session.sub, {
+    phone,
+    notifyWhatsApp: true,
+  });
   return jsonOk({ phone });
 }
