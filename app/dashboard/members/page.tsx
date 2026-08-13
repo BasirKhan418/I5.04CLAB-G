@@ -57,6 +57,7 @@ export default async function MembersPage() {
           email: user.email,
           phone: user.phone ?? null,
           role: user.role,
+          notifyWhatsApp: user.notifyWhatsApp,
           inside: lastDirection.get(String(user._id)) === "in",
           hoursToday: formatDuration(hoursOnDay(events, today)),
         };

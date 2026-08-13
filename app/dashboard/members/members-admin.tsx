@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BrutalButton, BrutalInput } from "@/components/brutal";
 import { useAdminUi } from "@/components/admin-ui";
+import { EditMemberModal } from "@/components/edit-member-modal";
 import { StatusPill } from "@/components/status-pill";
 import { api } from "@/lib/utils";
 import {
@@ -21,6 +22,7 @@ type Member = {
   email: string;
   phone: string | null;
   role: string;
+  notifyWhatsApp?: boolean;
   inside: boolean;
   hoursToday: string;
 };
@@ -40,9 +42,11 @@ export function MembersAdmin({
   const [error, setError] = useState("");
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const confirmMember = members.find((member) => member.id === confirmId);
+  const editMember = members.find((member) => member.id === editId);
   const shown = members.filter((member) => {
     const hay = `${member.name} ${member.email} ${member.phone ?? ""}`.toLowerCase();
     return hay.includes(query.trim().toLowerCase());
@@ -110,15 +114,26 @@ export function MembersAdmin({
               <StatusPill inside={member.inside} />
               <span className="text-sm">Today {member.hoursToday}</span>
             </div>
-            {canRemoveMember(member, me, isSuperadmin, superadminCount) ? (
-              <button
-                type="button"
-                className="mt-3 text-sm font-semibold text-lab-red"
-                onClick={() => setConfirmId(member.id)}
-              >
-                Remove
-              </button>
-            ) : null}
+            <div className="mt-3 flex items-center gap-3">
+              {canEditMember(member, isSuperadmin) ? (
+                <button
+                  type="button"
+                  className="text-sm font-semibold"
+                  onClick={() => setEditId(member.id)}
+                >
+                  Edit
+                </button>
+              ) : null}
+              {canRemoveMember(member, me, isSuperadmin, superadminCount) ? (
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-lab-red"
+                  onClick={() => setConfirmId(member.id)}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
           </div>
         ))}
       </div>
@@ -150,6 +165,15 @@ export function MembersAdmin({
                   <td className="px-4 py-3 capitalize">{member.role}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      {canEditMember(member, isSuperadmin) ? (
+                        <button
+                          type="button"
+                          className="rounded-full px-3 py-1 text-sm font-semibold hover:bg-ink/5"
+                          onClick={() => setEditId(member.id)}
+                        >
+                          Edit
+                        </button>
+                      ) : null}
                       <ViewLink id={member.id} name={member.name} />
                       {canRemoveMember(
                         member,
@@ -173,6 +197,14 @@ export function MembersAdmin({
           </table>
         </div>
       </div>
+
+      <EditMemberModal
+        member={editMember ?? null}
+        open={Boolean(editId)}
+        onOpenChange={(open) => !open && setEditId(null)}
+        toast={toast}
+        canAssignSuperadmin={isSuperadmin}
+      />
 
       <Dialog open={Boolean(confirmId)} onOpenChange={(open) => !open && setConfirmId(null)}>
         <DialogContent className="bg-white sm:max-w-sm">
@@ -204,6 +236,10 @@ export function MembersAdmin({
       </Dialog>
     </div>
   );
+}
+
+function canEditMember(member: Member, isSuperadmin: boolean) {
+  return isSuperadmin || member.role !== "superadmin";
 }
 
 function canRemoveMember(

@@ -86,6 +86,7 @@ export async function GET(request: Request, context: RouteContext) {
     email: user.email,
     phone: user.phone ?? null,
     role: user.role,
+    notifyWhatsApp: user.notifyWhatsApp,
     inside: member?.inside ?? false,
     window: `${WORK_START_LABEL} – ${WORK_END_LABEL}`,
     from: report.from,

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Download } from "lucide-react";
 import { BrutalButton, BrutalInput } from "@/components/brutal";
+import { EditMemberModal } from "@/components/edit-member-modal";
 import { HoursCharts } from "@/components/hours-charts";
 import { StatusPill } from "@/components/status-pill";
 import { useAdminUi } from "@/components/admin-ui";
@@ -35,6 +36,7 @@ type Activity = {
   email: string;
   phone: string | null;
   role: string;
+  notifyWhatsApp?: boolean;
   inside: boolean;
   window: string;
   from: string;
@@ -78,7 +80,7 @@ function presets() {
 }
 
 export function MemberActivity({ memberId }: { memberId: string }) {
-  const { toast } = useAdminUi();
+  const { isSuperadmin, toast } = useAdminUi();
   const today = istDateKey();
   const [from, setFrom] = useState(monthStartIst());
   const [to, setTo] = useState(today);
@@ -87,6 +89,8 @@ export function MemberActivity({ memberId }: { memberId: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [reload, setReload] = useState(0);
   const ranges = useMemo(() => presets(), []);
 
   useEffect(() => {
@@ -108,7 +112,7 @@ export function MemberActivity({ memberId }: { memberId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [memberId, from, to, date]);
+  }, [memberId, from, to, date, reload]);
 
   async function exportExcel() {
     setExporting(true);
@@ -161,15 +165,25 @@ export function MemberActivity({ memberId }: { memberId: string }) {
             </span>
           </div>
         </div>
-        <BrutalButton
-          type="button"
-          loading={exporting}
-          onClick={exportExcel}
-          className="w-full sm:w-auto"
-        >
-          <Download className="size-4" />
-          Export hours
-        </BrutalButton>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <BrutalButton
+            type="button"
+            variant="white"
+            onClick={() => setEditing(true)}
+            className="w-full sm:w-auto"
+          >
+            Edit member
+          </BrutalButton>
+          <BrutalButton
+            type="button"
+            loading={exporting}
+            onClick={exportExcel}
+            className="w-full sm:w-auto"
+          >
+            <Download className="size-4" />
+            Export hours
+          </BrutalButton>
+        </div>
       </div>
 
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -354,6 +368,26 @@ export function MemberActivity({ memberId }: { memberId: string }) {
           </section>
         </div>
       ) : null}
+
+      <EditMemberModal
+        member={
+          data
+            ? {
+                id: data.id,
+                name: data.name,
+                email: data.email,
+                phone: data.phone,
+                role: data.role,
+                notifyWhatsApp: data.notifyWhatsApp,
+              }
+            : null
+        }
+        open={editing}
+        onOpenChange={setEditing}
+        toast={toast}
+        canAssignSuperadmin={isSuperadmin}
+        onSaved={() => setReload((n) => n + 1)}
+      />
     </div>
   );
 }
