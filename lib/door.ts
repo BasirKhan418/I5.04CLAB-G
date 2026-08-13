@@ -5,7 +5,8 @@ import { getRedis } from "@/lib/redis";
 export type DoorOpenReason =
   | "visitor-approve"
   | "member-in"
-  | "member-out";
+  | "member-out"
+  | "manual";
 
 export type DoorOpenEvent = {
   type: "open";

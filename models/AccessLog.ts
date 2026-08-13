@@ -2,14 +2,14 @@ import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 
 const AccessLogSchema = new Schema(
   {
-    kind: { type: String, enum: ["member", "visitor"], required: true },
+    kind: { type: String, enum: ["member", "visitor", "utility"], required: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     displayName: { type: String, required: true, trim: true },
     reason: { type: String, default: null, trim: true },
     direction: { type: String, enum: ["in", "out"], required: true },
     method: {
       type: String,
-      enum: ["pin", "otp", "visitor"],
+      enum: ["pin", "otp", "visitor", "manual"],
       required: true,
     },
     faceKey: { type: String, default: null },

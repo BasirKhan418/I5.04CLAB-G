@@ -8,6 +8,8 @@ import {
   LogOut,
   ScanLine,
   ScrollText,
+  Server,
+  Unlock,
   UserRound,
   Users,
 } from "lucide-react";
@@ -31,13 +33,19 @@ const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/logs", label: "Logs", icon: ScrollText },
   { href: "/dashboard/members", label: "Members", icon: Users, admin: true },
+  {
+    href: "/dashboard/infrastructure",
+    label: "Infrastructure",
+    icon: Server,
+    admin: true,
+  },
   { href: "/dashboard/profile", label: "Profile", icon: UserRound },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAdmin, pendingCount } = useAdminUi();
+  const { isAdmin, pendingCount, openDoor } = useAdminUi();
   const { setOpenMobile, isMobile } = useSidebar();
   const [leaving, setLeaving] = useState(false);
 
@@ -107,6 +115,19 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t-2 border-ink p-2">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="Allow — open door"
+              onClick={() => {
+                if (isMobile) setOpenMobile(false);
+                openDoor();
+              }}
+              className="h-10 rounded-full border-2 border-ink bg-lab-red px-3 text-white hover:bg-lab-red hover:text-white"
+            >
+              <Unlock />
+              <span>Allow</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Kiosk"

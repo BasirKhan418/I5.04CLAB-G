@@ -18,7 +18,7 @@ export type ReportPunch = {
   userId: string | null;
   name: string;
   email: string | null;
-  kind: "member" | "visitor";
+  kind: "member" | "visitor" | "utility";
   direction: "in" | "out";
   method: string;
   status: string;
@@ -160,7 +160,7 @@ export async function buildHoursReport(
         userId: id,
         name: person?.name ?? log.displayName,
         email: person?.email ?? null,
-        kind: log.kind as "member" | "visitor",
+        kind: log.kind as "member" | "visitor" | "utility",
         direction: log.direction as "in" | "out",
         method: log.method,
         status: log.status,

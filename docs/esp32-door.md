@@ -18,6 +18,7 @@ Health check: `http://<server-ip>:8787/health`
 | Staff **Deny** | No |
 | Member **Enter** | Open |
 | Member **Close** | Open (so they can walk out) |
+| Dashboard **Allow** (reason required) | Open |
 
 Hold time is `holdMs` in the `open` message (default **2500 ms**). Change `DOOR_OPEN_MS` in `.env` if you want 3 seconds.
 
@@ -65,7 +66,7 @@ Server → ESP32 when the lock should fire:
 { "type": "open", "holdMs": 2500, "reason": "visitor-approve", "at": "2026-08-13T21:00:00.000Z" }
 ```
 
-`reason` is `visitor-approve`, `member-in`, or `member-out`. Firmware can ignore it and only look at `type === "open"`.
+`reason` is `visitor-approve`, `member-in`, `member-out`, or `manual`. Firmware can ignore it and only look at `type === "open"`.
 
 ESP32 may send:
 

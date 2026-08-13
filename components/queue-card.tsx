@@ -29,11 +29,13 @@ export function QueueCard({ events }: { events: QueueEvent[] }) {
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-ink/50">
-                {event.kind === "visitor"
-                  ? "Visitor"
-                  : event.direction === "in"
-                    ? "IN"
-                    : "OUT"}{" "}
+                {event.kind === "utility"
+                  ? "Door"
+                  : event.kind === "visitor"
+                    ? "Visitor"
+                    : event.direction === "in"
+                      ? "IN"
+                      : "OUT"}{" "}
                 · {formatIstTime(event.createdAt)}
                 {event.reason ? ` · ${event.reason}` : ""}
               </p>

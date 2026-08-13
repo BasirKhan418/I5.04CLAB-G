@@ -1,13 +1,17 @@
-import { getEnv } from "@/lib/env";
+import {
+  assertOpenwaReady,
+  getOpenwaConfig,
+} from "@/lib/openwa-config";
 
 async function openwaFetch(path: string, body: unknown) {
-  const env = getEnv();
-  const url = `${env.openwaApiUrl}/sessions/${env.openwaSessionId}${path}`;
+  const config = await getOpenwaConfig();
+  assertOpenwaReady(config);
+  const url = `${config.apiUrl}/sessions/${config.sessionId}${path}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-API-Key": env.openwaApiKey,
+      "X-API-Key": config.apiKey,
     },
     body: JSON.stringify(body),
   });
@@ -50,13 +54,13 @@ export async function sendTemplate(
   chatId: string,
   vars: Record<string, string>
 ) {
-  const env = getEnv();
-  if (!env.openwaTemplateId) {
-    throw new Error("TEMPLATE_ID_OPENWA is not set");
+  const config = await getOpenwaConfig();
+  if (!config.templateId) {
+    throw new Error("Template ID is not set");
   }
   return openwaFetch("/messages/send-template", {
     chatId,
-    templateId: env.openwaTemplateId,
+    templateId: config.templateId,
     vars,
   });
 }

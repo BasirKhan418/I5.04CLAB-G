@@ -12,7 +12,11 @@ export async function GET(request: Request) {
   const limit = Math.min(Number(searchParams.get("limit") ?? "80"), 200);
   const kindParam = searchParams.get("kind");
   const kind =
-    kindParam === "member" || kindParam === "visitor" ? kindParam : undefined;
+    kindParam === "member" ||
+    kindParam === "visitor" ||
+    kindParam === "utility"
+      ? kindParam
+      : undefined;
 
   await connectDB();
   const logs = await AccessLog.find(kind ? { kind } : {})

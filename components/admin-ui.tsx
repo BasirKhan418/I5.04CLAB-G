@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { AddMemberModal } from "@/components/add-member-modal";
+import { DoorOpenModal } from "@/components/door-open-modal";
 import { useGateStream } from "@/hooks/use-gate-stream";
 import { api, cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ type Toast = {
 type AdminUi = {
   isAdmin: boolean;
   openAddMember: () => void;
+  openDoor: () => void;
   pending: PendingItem[];
   pendingCount: number;
   refreshPending: () => Promise<void>;
@@ -55,9 +57,11 @@ export function AdminUiProvider({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [doorOpen, setDoorOpen] = useState(false);
   const [pending, setPending] = useState<PendingItem[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const openAddMember = useCallback(() => setOpen(true), []);
+  const openDoor = useCallback(() => setDoorOpen(true), []);
 
   const refreshPending = useCallback(async () => {
     if (!isAdmin) return;
@@ -104,6 +108,7 @@ export function AdminUiProvider({
       value={{
         isAdmin,
         openAddMember,
+        openDoor,
         pending,
         pendingCount: pending.length,
         refreshPending,
@@ -114,6 +119,7 @@ export function AdminUiProvider({
       {isAdmin ? (
         <AddMemberModal open={open} onOpenChange={setOpen} toast={toast} />
       ) : null}
+      <DoorOpenModal open={doorOpen} onOpenChange={setDoorOpen} toast={toast} />
       <div className="pointer-events-none fixed right-4 bottom-4 z-[80] flex w-[min(100%-2rem,20rem)] flex-col gap-2">
         {toasts.map((item) => (
           <p

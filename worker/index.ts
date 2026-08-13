@@ -4,6 +4,7 @@ import IORedis from "ioredis";
 import mongoose from "mongoose";
 import { QUEUE_NAME } from "../lib/constants";
 import { getEnv } from "../lib/env";
+import { getOpenwaConfig } from "../lib/openwa-config";
 import {
   visitorAlertText,
   visitorImageCaption,
@@ -30,10 +31,10 @@ async function sendAlert(
   visitorName: string,
   reason: string | null
 ) {
-  const env = getEnv();
+  const config = await getOpenwaConfig();
   const text = visitorAlertText(memberName, visitorName, reason);
   try {
-    if (env.openwaTemplateId) {
+    if (config.templateId) {
       await sendTemplate(
         chatId,
         visitorTemplateVars(memberName, visitorName, reason)

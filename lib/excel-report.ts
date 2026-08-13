@@ -272,7 +272,14 @@ export async function buildHoursWorkbook(report: HoursReport) {
         method: punch.method,
         status: punch.status,
         reason: punch.reason ?? "",
-        use: punch.kind === "member" && punch.auditOnly ? "Audit only" : "KPI window",
+        use:
+          punch.kind === "utility"
+            ? "Door only"
+            : punch.kind === "visitor"
+              ? "Visitor"
+              : punch.kind === "member" && punch.auditOnly
+                ? "Audit only"
+                : "KPI window",
       });
       zebra(row, index);
     });

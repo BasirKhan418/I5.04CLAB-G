@@ -35,18 +35,22 @@ export function RecentLogList({
           <span
             className={cn(
               "mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold",
-              punch.kind === "visitor"
-                ? "bg-lab-yellow/80"
-                : punch.direction === "in"
-                  ? "bg-lab-mint/80"
-                  : "bg-ink/8"
+              punch.kind === "utility"
+                ? "bg-lab-red/15 text-lab-red"
+                : punch.kind === "visitor"
+                  ? "bg-lab-yellow/80"
+                  : punch.direction === "in"
+                    ? "bg-lab-mint/80"
+                    : "bg-ink/8"
             )}
           >
-            {punch.kind === "visitor"
-              ? "VIS"
-              : punch.direction === "in"
-                ? "IN"
-                : "OUT"}
+            {punch.kind === "utility"
+              ? "OPEN"
+              : punch.kind === "visitor"
+                ? "VIS"
+                : punch.direction === "in"
+                  ? "IN"
+                  : "OUT"}
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">{punch.name}</p>

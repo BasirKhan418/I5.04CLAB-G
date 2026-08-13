@@ -20,6 +20,7 @@ function pageTitle(pathname: string) {
   if (pathname === "/dashboard/members") return "Members";
   if (pathname.startsWith("/dashboard/members/")) return "Member";
   if (pathname === "/dashboard/profile") return "Profile";
+  if (pathname === "/dashboard/infrastructure") return "Infrastructure";
   return "I5.04C Lab";
 }
 

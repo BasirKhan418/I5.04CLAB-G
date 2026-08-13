@@ -65,7 +65,9 @@ export function LogsExplorer() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const [kind, setKind] = useState<"all" | "member" | "visitor">("all");
+  const [kind, setKind] = useState<"all" | "member" | "visitor" | "utility">(
+    "all"
+  );
   const [query, setQuery] = useState("");
   const [eventLimit, setEventLimit] = useState(EVENT_PAGE);
   const ranges = useMemo(() => presets(), []);
@@ -308,6 +310,7 @@ export function LogsExplorer() {
               <option value="all">All events</option>
               <option value="member">Members</option>
               <option value="visitor">Visitors</option>
+              <option value="utility">Door opens</option>
             </select>
           </label>
         </div>
@@ -322,11 +325,12 @@ export function LogsExplorer() {
                 <div className="flex items-center justify-between gap-2">
                   <p className="min-w-0 truncate font-medium">{punch.name}</p>
                   <span className="shrink-0 text-xs font-bold uppercase">
-                    {punch.direction}
+                    {punch.kind === "utility" ? "open" : punch.direction}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-ink/50">
-                  {formatIstDateTime(punch.createdAt)} · {punch.kind}
+                  {formatIstDateTime(punch.createdAt)} ·{" "}
+                  {punch.kind === "utility" ? "door" : punch.kind}
                   {punch.reason ? ` · ${punch.reason}` : ""}
                   {punch.auditOnly ? " · audit" : ""}
                 </p>
@@ -362,8 +366,12 @@ export function LogsExplorer() {
                         punch.name
                       )}
                     </td>
-                    <td className="px-4 py-3 capitalize">{punch.kind}</td>
-                    <td className="px-4 py-3 uppercase">{punch.direction}</td>
+                    <td className="px-4 py-3 capitalize">
+                      {punch.kind === "utility" ? "Door" : punch.kind}
+                    </td>
+                    <td className="px-4 py-3 uppercase">
+                      {punch.kind === "utility" ? "OPEN" : punch.direction}
+                    </td>
                     <td className="px-4 py-3 text-ink/60">
                       {punch.method}
                       {punch.status !== "approved" ? ` · ${punch.status}` : ""}
