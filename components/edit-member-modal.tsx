@@ -139,7 +139,7 @@ export function EditMemberModal({
             >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
-              {role === "superadmin" ? (
+              {canAssignSuperadmin || role === "superadmin" ? (
                 <option value="superadmin">Superadmin</option>
               ) : null}
             </select>

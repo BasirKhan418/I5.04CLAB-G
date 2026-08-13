@@ -123,7 +123,7 @@ export function AdminUiProvider({
           open={open}
           onOpenChange={setOpen}
           toast={toast}
-          canAssignSuperadmin={false}
+          canAssignSuperadmin={isSuperadmin}
         />
       ) : null}
       <DoorOpenModal open={doorOpen} onOpenChange={setDoorOpen} toast={toast} />
