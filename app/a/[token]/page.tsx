@@ -1,10 +1,38 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connectDB } from "@/lib/db";
 import { verifyAllowToken } from "@/lib/allow-link";
 import { AccessLog } from "@/models/AccessLog";
 import { PublicAllow } from "@/components/public-allow";
+import { pageMetadata } from "@/lib/seo";
 
 type PageProps = { params: Promise<{ token: string }> };
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { token } = await params;
+  const id = verifyAllowToken(token);
+  if (!id) {
+    return pageMetadata({
+      title: "Visitor request",
+      description: "Approve or deny an I5.04C Lab visitor request.",
+      path: `/a/${token}`,
+      index: false,
+    });
+  }
+
+  await connectDB();
+  const log = await AccessLog.findById(id).select("displayName kind");
+  const name = log?.kind === "visitor" ? log.displayName : "Visitor";
+
+  return pageMetadata({
+    title: `${name} wants in`,
+    description: `Review ${name}'s visitor request for I5.04C Lab and approve or deny door access.`,
+    path: `/a/${token}`,
+    index: false,
+  });
+}
 
 export default async function PublicAllowPage({ params }: PageProps) {
   const { token } = await params;

@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { connectDB } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { User } from "@/models/User";
@@ -12,6 +14,14 @@ import {
   startOfIstDate,
 } from "@/lib/hours";
 import { getLastDirections } from "@/lib/reports";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Members",
+  description:
+    "Manage I5.04C Lab members, roles, hours, and kiosk access.",
+  path: "/dashboard/members",
+  index: false,
+});
 
 export default async function MembersPage() {
   const session = await getSession();

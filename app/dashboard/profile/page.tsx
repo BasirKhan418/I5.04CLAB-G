@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { connectDB } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { User } from "@/models/User";
 import { redirect } from "next/navigation";
 import { ProfileForms } from "./profile-forms";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Profile",
+  description:
+    "Update your I5.04C Lab name, phone, and PIN for kiosk check-in.",
+  path: "/dashboard/profile",
+  index: false,
+});
 
 export default async function ProfilePage() {
   const session = await getSession();

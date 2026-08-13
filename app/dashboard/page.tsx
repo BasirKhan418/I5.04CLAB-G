@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { connectDB } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { User } from "@/models/User";
@@ -13,6 +15,14 @@ import {
 } from "@/lib/hours";
 import { buildHoursReport } from "@/lib/reports";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Who's in",
+  description:
+    "See who is inside I5.04C Lab right now, your hours today, and pending visitor approvals.",
+  path: "/dashboard",
+  index: false,
+});
 
 export default async function DashboardPage() {
   const session = await getSession();
