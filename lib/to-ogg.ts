@@ -5,7 +5,8 @@ import { join } from "path";
 import ffmpegPath from "ffmpeg-static";
 
 export async function toOggOpus(input: Buffer, inputExt: string) {
-  if (!ffmpegPath) {
+  const ffmpeg = ffmpegPath;
+  if (!ffmpeg) {
     throw new Error("ffmpeg is not available");
   }
 
@@ -16,7 +17,7 @@ export async function toOggOpus(input: Buffer, inputExt: string) {
   try {
     await writeFile(src, input);
     await new Promise<void>((resolve, reject) => {
-      const proc = spawn(ffmpegPath, [
+      const proc = spawn(ffmpeg, [
         "-y",
         "-i",
         src,

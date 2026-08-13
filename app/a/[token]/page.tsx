@@ -59,7 +59,7 @@ export default async function PublicAllowPage({ params }: PageProps) {
     <PublicAllow
       token={token}
       name={log.displayName}
-      reason={log.reason}
+      reason={log.reason ?? null}
       status={log.status as "pending" | "approved" | "denied"}
     />
   );

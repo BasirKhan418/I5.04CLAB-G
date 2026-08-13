@@ -10,14 +10,14 @@ import { isCurrentlyIn } from "@/lib/hours";
 import { presignGet } from "@/lib/s3";
 
 async function memberPayload(user: {
-  _id: unknown;
+  _id: { toString(): string };
   name: string;
   email: string;
   faceKey?: string | null;
 }) {
   const events = await AccessLog.find({
     kind: "member",
-    userId: user._id,
+    userId: String(user._id),
   }).select("direction createdAt");
 
   return {
