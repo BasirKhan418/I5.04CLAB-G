@@ -28,10 +28,11 @@ export default async function DashboardLayout({
   }
 
   const isAdmin = session.role === "admin" || session.role === "superadmin";
+  const isSuperadmin = session.role === "superadmin";
 
   return (
     <TooltipProvider>
-      <AdminUiProvider isAdmin={isAdmin}>
+      <AdminUiProvider isAdmin={isAdmin} isSuperadmin={isSuperadmin}>
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset className="min-w-0 overflow-x-hidden bg-cream">

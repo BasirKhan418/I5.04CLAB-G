@@ -33,7 +33,10 @@ export function MembersAdmin({
   members: Member[];
 }) {
   const router = useRouter();
-  const { openAddMember, toast } = useAdminUi();
+  const { isSuperadmin, openAddMember, toast } = useAdminUi();
+  const superadminCount = members.filter(
+    (member) => member.role === "superadmin"
+  ).length;
   const [error, setError] = useState("");
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -107,7 +110,7 @@ export function MembersAdmin({
               <StatusPill inside={member.inside} />
               <span className="text-sm">Today {member.hoursToday}</span>
             </div>
-            {member.id !== me && member.role !== "superadmin" ? (
+            {canRemoveMember(member, me, isSuperadmin, superadminCount) ? (
               <button
                 type="button"
                 className="mt-3 text-sm font-semibold text-lab-red"
@@ -148,7 +151,12 @@ export function MembersAdmin({
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <ViewLink id={member.id} name={member.name} />
-                      {member.id !== me && member.role !== "superadmin" ? (
+                      {canRemoveMember(
+                        member,
+                        me,
+                        isSuperadmin,
+                        superadminCount
+                      ) ? (
                         <button
                           type="button"
                           className="rounded-full px-3 py-1 text-sm text-lab-red hover:bg-lab-red/10"
@@ -196,6 +204,17 @@ export function MembersAdmin({
       </Dialog>
     </div>
   );
+}
+
+function canRemoveMember(
+  member: Member,
+  me: string,
+  isSuperadmin: boolean,
+  superadminCount: number
+) {
+  if (member.id === me) return false;
+  if (member.role !== "superadmin") return true;
+  return isSuperadmin && superadminCount > 1;
 }
 
 function ViewLink({ id, name }: { id: string; name: string }) {

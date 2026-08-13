@@ -31,6 +31,7 @@ type Toast = {
 
 type AdminUi = {
   isAdmin: boolean;
+  isSuperadmin: boolean;
   openAddMember: () => void;
   openDoor: () => void;
   pending: PendingItem[];
@@ -51,9 +52,11 @@ export function useAdminUi() {
 
 export function AdminUiProvider({
   isAdmin,
+  isSuperadmin = false,
   children,
 }: {
   isAdmin: boolean;
+  isSuperadmin?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -64,7 +67,6 @@ export function AdminUiProvider({
   const openDoor = useCallback(() => setDoorOpen(true), []);
 
   const refreshPending = useCallback(async () => {
-    if (!isAdmin) return;
     const res = await api<PendingItem[]>("/api/gate/pending");
     if (res.ok) {
       setPending(
@@ -78,18 +80,17 @@ export function AdminUiProvider({
         }))
       );
     }
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
-    if (!isAdmin) return;
     void refreshPending();
     const timer = window.setInterval(() => {
       void refreshPending();
     }, 15000);
     return () => window.clearInterval(timer);
-  }, [isAdmin, refreshPending]);
+  }, [refreshPending]);
 
-  useGateStream(isAdmin, null, (event) => {
+  useGateStream(true, null, (event) => {
     if (event.type === "pending") {
       void refreshPending();
     }
@@ -107,6 +108,7 @@ export function AdminUiProvider({
     <AdminUiContext.Provider
       value={{
         isAdmin,
+        isSuperadmin,
         openAddMember,
         openDoor,
         pending,
@@ -117,7 +119,12 @@ export function AdminUiProvider({
     >
       {children}
       {isAdmin ? (
-        <AddMemberModal open={open} onOpenChange={setOpen} toast={toast} />
+        <AddMemberModal
+          open={open}
+          onOpenChange={setOpen}
+          toast={toast}
+          canAssignSuperadmin
+        />
       ) : null}
       <DoorOpenModal open={doorOpen} onOpenChange={setDoorOpen} toast={toast} />
       <div className="pointer-events-none fixed right-4 bottom-4 z-[80] flex w-[min(100%-2rem,20rem)] flex-col gap-2">

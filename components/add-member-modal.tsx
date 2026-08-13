@@ -16,15 +16,18 @@ export function AddMemberModal({
   open,
   onOpenChange,
   toast,
+  canAssignSuperadmin = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   toast: (message: string, tone?: "ok" | "err") => void;
+  canAssignSuperadmin?: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<"member" | "admin" | "superadmin">("member");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -36,7 +39,7 @@ export function AddMemberModal({
       "/api/members",
       {
         method: "POST",
-        body: JSON.stringify({ name, email, phone }),
+        body: JSON.stringify({ name, email, phone, role }),
       }
     );
     setBusy(false);
@@ -48,6 +51,7 @@ export function AddMemberModal({
     setName("");
     setEmail("");
     setPhone("");
+    setRole("member");
     onOpenChange(false);
     toast(
       res.data.emailed
@@ -98,6 +102,22 @@ export function AddMemberModal({
               inputMode="numeric"
               autoComplete="tel"
             />
+          </label>
+          <label className="block text-xs font-medium text-ink/50">
+            Role
+            <select
+              className="mt-1 h-11 w-full min-w-0 rounded-lg border border-ink/15 bg-white px-3.5 text-sm outline-none transition focus:border-ink/40"
+              value={role}
+              onChange={(e) =>
+                setRole(e.target.value as "member" | "admin" | "superadmin")
+              }
+            >
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+              {canAssignSuperadmin ? (
+                <option value="superadmin">Superadmin</option>
+              ) : null}
+            </select>
           </label>
           {error ? <p className="text-sm text-lab-red">{error}</p> : null}
           <BrutalButton type="submit" loading={busy} className="w-full">

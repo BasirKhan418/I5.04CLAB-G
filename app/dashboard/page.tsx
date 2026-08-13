@@ -72,7 +72,7 @@ export default async function DashboardPage() {
         </BrutalCard>
       ) : null}
 
-      {isAdmin ? <PendingApprovals /> : null}
+      <PendingApprovals />
 
       <div className="grid grid-cols-2 gap-3">
         {[

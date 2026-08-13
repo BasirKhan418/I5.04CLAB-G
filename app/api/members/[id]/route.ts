@@ -21,7 +21,16 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return jsonError("Member not found", 404);
   }
   if (user.role === "superadmin") {
-    return jsonError("Cannot remove the superadmin");
+    if (auth.session.role !== "superadmin") {
+      return jsonError("Cannot remove a superadmin");
+    }
+    const others = await User.countDocuments({
+      role: "superadmin",
+      _id: { $ne: user._id },
+    });
+    if (others === 0) {
+      return jsonError("Cannot remove the last superadmin");
+    }
   }
 
   await User.findByIdAndDelete(id);

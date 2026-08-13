@@ -17,7 +17,7 @@ const createSchema = z.object({
   name: z.string().trim().min(1),
   email: z.string().email(),
   phone: z.string().optional(),
-  role: z.enum(["admin", "member"]).optional(),
+  role: z.enum(["superadmin", "admin", "member"]).optional(),
 });
 
 export async function GET() {
@@ -84,12 +84,14 @@ export async function POST(request: Request) {
     return jsonError("Email or phone already on the roster");
   }
 
+  const role = parsed.data.role ?? "member";
+
   const pin = generatePin();
   const user = await User.create({
     name: parsed.data.name.trim(),
     email,
     ...(phone ? { phone } : {}),
-    role: parsed.data.role ?? "member",
+    role,
     pinHash: await hashPin(pin),
     mustChangePin: true,
     notifyWhatsApp: true,
