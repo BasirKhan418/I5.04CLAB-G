@@ -58,7 +58,8 @@ async function main() {
   const worker = new Worker<GateNotifyJob>(
     QUEUE_NAME,
     async (job: Job<GateNotifyJob>) => {
-      const { logId, visitorName, reason, imageKey, voiceKey } = job.data;
+      const { logId, visitorName, reason, imageKey, voiceKey, voiceSeconds } =
+        job.data;
       const recipients = uniqueRecipients(job.data.recipients);
       if (recipients.length === 0) return;
 
@@ -119,10 +120,15 @@ async function main() {
           recipients.map(async (recipient) => {
             if (done(recipient.chatId, "voice")) return;
             try {
-              await sendVoice(recipient.chatId, voiceUrl);
+              await sendVoice(
+                recipient.chatId,
+                voiceUrl,
+                voiceSeconds ?? 4
+              );
               await persist(recipient.chatId, "voice");
             } catch (error) {
               console.error(`voice failed for ${recipient.chatId}`, error);
+              failures.push(error);
             }
           })
         );

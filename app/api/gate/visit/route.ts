@@ -21,6 +21,7 @@ export async function POST(request: Request) {
 
   let faceKey: string | null = null;
   let voiceKey: string | null = null;
+  let voiceSeconds = 4;
 
   if (face instanceof File && face.size > 0) {
     if (face.size > 5 * 1024 * 1024) {
@@ -43,11 +44,12 @@ export async function POST(request: Request) {
     try {
       const ogg = await toOggOpus(raw, ext);
       voiceKey = await uploadBuffer({
-        body: ogg,
-        contentType: "audio/ogg",
+        body: ogg.buffer,
+        contentType: "audio/ogg; codecs=opus",
         folder: "voice",
         ext: "ogg",
       });
+      voiceSeconds = ogg.seconds;
     } catch (error) {
       console.error("voice convert failed", error);
       return jsonError("Could not process voice note");
@@ -73,6 +75,7 @@ export async function POST(request: Request) {
     reason,
     imageKey: faceKey,
     voiceKey,
+    voiceSeconds,
     recipients,
   });
   await publishGateEvent({

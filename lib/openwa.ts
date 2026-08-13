@@ -42,11 +42,18 @@ export async function sendImage(
   return openwaFetch("/messages/send-image", { chatId, url, caption });
 }
 
-export async function sendVoice(chatId: string, url: string) {
+export async function sendVoice(
+  chatId: string,
+  url: string,
+  seconds = 4
+) {
   return openwaFetch("/messages/send-audio", {
     chatId,
     url,
     ptt: true,
+    mimetype: "audio/ogg; codecs=opus",
+    seconds,
+    duration: seconds,
   });
 }
 

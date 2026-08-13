@@ -20,6 +20,7 @@ export type GateNotifyJob = {
   reason: string | null;
   imageKey?: string | null;
   voiceKey?: string | null;
+  voiceSeconds?: number;
   recipients: GateNotifyRecipient[];
   sent?: Record<string, NotifySent>;
 };
