@@ -18,6 +18,7 @@ export function useCamStream(
   canvasRef: React.RefObject<HTMLCanvasElement | null>
 ) {
   const [status, setStatus] = useState<CamStatus>("idle");
+  const [hasFrame, setHasFrame] = useState(false);
   const paintBusy = useRef(false);
   const latestFrame = useRef<ArrayBuffer | null>(null);
 
@@ -66,6 +67,7 @@ export function useCamStream(
         const ctx = canvas.getContext("2d", { alpha: false });
         if (ctx) {
           ctx.drawImage(bmp, 0, 0);
+          setHasFrame(true);
         }
         bmp.close();
       } catch {
@@ -90,9 +92,6 @@ export function useCamStream(
 
     async function connect() {
       setStatus("connecting");
-      latestFrame.current = null;
-      flushUrls();
-      clearCanvas();
       const res = await api<{ ticket: string }>("/api/cam/ticket", {
         cache: "no-store",
       });
@@ -113,16 +112,6 @@ export function useCamStream(
       ws.onmessage = (event) => {
         if (closed) return;
         if (typeof event.data === "string") {
-          try {
-            const msg = JSON.parse(event.data) as { live?: boolean };
-            if (msg.live === false) {
-              setStatus("offline");
-              latestFrame.current = null;
-              clearCanvas();
-            }
-          } catch {
-            /* ignore */
-          }
           return;
         }
         setStatus("live");
@@ -131,11 +120,8 @@ export function useCamStream(
       };
       ws.onclose = () => {
         if (closed) return;
-        setStatus("offline");
-        latestFrame.current = null;
-        flushUrls();
-        clearCanvas();
-        reconnectTimer = window.setTimeout(connect, 2500);
+        setStatus("connecting");
+        reconnectTimer = window.setTimeout(connect, 1500);
       };
     }
 
@@ -151,5 +137,5 @@ export function useCamStream(
     };
   }, [active, canvasRef]);
 
-  return { status: active ? status : "idle" };
+  return { status: active ? status : "idle", hasFrame: active && hasFrame };
 }

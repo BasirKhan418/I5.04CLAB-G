@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 import { useCamStream, type CamStatus } from "@/hooks/use-cam-stream";
 
 const labels: Record<CamStatus, string> = {
-  connecting: "Connecting…",
+  connecting: "Waiting for camera…",
   live: "Live",
-  idle: "Idle",
-  offline: "Camera offline",
+  idle: "Live",
+  offline: "Waiting for camera…",
   error: "Sign in required",
 };
 
@@ -21,7 +21,7 @@ export function LiveCamera({
   compact?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { status } = useCamStream(true, canvasRef);
+  const { status, hasFrame } = useCamStream(true, canvasRef);
 
   return (
     <div
@@ -36,10 +36,10 @@ export function LiveCamera({
           ref={canvasRef}
           className={cn(
             "absolute inset-0 h-full w-full object-cover",
-            status === "live" ? "opacity-100" : "opacity-0"
+            hasFrame ? "opacity-100" : "opacity-0"
           )}
         />
-        {status !== "live" ? (
+        {!hasFrame ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/70">
             <Camera className="size-8" />
             <p className="text-sm font-medium">{labels[status]}</p>

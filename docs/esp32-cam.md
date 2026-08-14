@@ -37,9 +37,11 @@ Camera already uses GPIO **0, 5, 18, 19, 21, 22, 23, 25, 26, 27, 32, 34, 35, 36,
 |---|---|---|---|
 | Buzzer | **12** | LOW | HIGH |
 | Idle-high / lock A | **13** | HIGH | LOW |
-| Idle-low / lock B | **14** | LOW | HIGH |
+| Idle-low / lock B → Arduino RFID D3 | **14** | LOW | HIGH |
 
-Same pulse as the previous ESP32-S sketch: buzzer HIGH for `holdMs`, pin 13/14 swap, then back. GPIO 25/27 cannot be used on this board (camera).
+Arduino RFID lock is **active-LOW relay**, unlocked when D3 reads **HIGH**. Wire **GPIO 14 → Arduino D3**, and **GND → GND**. Do not use GPIO 13 for that input (it is HIGH while locked).
+
+Add a **10k pulldown** from Arduino D3 to GND so a disconnected wire cannot float HIGH and unlock.
 
 Do not use GPIO **16** (PSRAM). Leave the microSD unsoldered / unused.
 
@@ -50,20 +52,14 @@ Same door JSON as before, plus camera:
 Server → board on connect:
 
 ```json
-{ "type": "hello", "holdMs": 2500, "heartbeatMs": 15000, "cam": false }
+{ "type": "hello", "holdMs": 2500, "heartbeatMs": 15000, "cam": true }
 ```
-
-Server → board when a dashboard user opens the live view:
 
 ```json
 { "type": "cam-on" }
 ```
 
-```json
-{ "type": "cam-off" }
-```
-
-Board → server: binary JPEG frames (SOI `FF D8`) on the **same** `/door` socket, ~4 fps, QVGA. Only while `cam-on`.
+The board keeps streaming JPEG frames all the time while the WSS link is up. There is no `cam-off`.
 
 Unlock is unchanged:
 
@@ -126,7 +122,7 @@ unsigned long lastFrame = 0;
 unsigned long pulseUntil = 0;
 bool doorOpen = false;
 bool socketReady = false;
-bool camWanted = false;
+bool camWanted = true;
 
 const char* level(int pin) {
   return digitalRead(pin) ? "HIGH" : "LOW";
@@ -187,11 +183,6 @@ void handleText(const String& data) {
   Serial.print("WS IN: ");
   Serial.println(data);
 
-  if (data.indexOf("\"cam-off\"") >= 0 || data.indexOf("\"cam\":false") >= 0) {
-    camWanted = false;
-    Serial.println("CAM OFF");
-    if (data.indexOf("\"cam-off\"") >= 0) return;
-  }
   if (data.indexOf("\"cam-on\"") >= 0 || data.indexOf("\"cam\":true") >= 0) {
     camWanted = true;
     Serial.println("CAM ON");
@@ -231,7 +222,6 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
     }
     case WStype_DISCONNECTED:
       socketReady = false;
-      camWanted = false;
       Serial.println("WSS CONNECTION CLOSED");
       break;
     default:
@@ -334,7 +324,6 @@ void loop() {
 
   if (WiFi.status() != WL_CONNECTED) {
     socketReady = false;
-    camWanted = false;
     WiFi.reconnect();
     delay(500);
     return;

@@ -138,7 +138,7 @@ async function main() {
       "door hello"
     );
     const hello = doorMsgs.texts.find((m) => m.type === "hello");
-    if (hello?.cam !== false) fail("hello.cam should be false with no viewers");
+    if (hello?.cam !== true) fail("hello.cam should be true (camera always on)");
     if (hello?.holdMs !== 2500 && typeof hello?.holdMs !== "number") {
       fail("hello missing holdMs");
     }
@@ -168,10 +168,7 @@ async function main() {
       () => doorMsgs.texts.some((m) => m.type === "cam-on"),
       "cam-on to board"
     );
-    if (viewMsgs.bins.length !== 0) {
-      fail("viewer got a stale JPEG on connect");
-    }
-    console.log("6. viewer connected, board got cam-on, no stale frame");
+    console.log("6. viewer connected, camera stays on");
 
     const jpeg1 = Buffer.concat([
       Buffer.from([0xff, 0xd8]),
@@ -193,19 +190,15 @@ async function main() {
       viewer2.on("error", reject);
     });
     await sleep(200);
-    if (view2Msgs.bins.length !== 0) {
-      fail("second viewer received replayed old JPEG");
-    }
     const jpeg2 = Buffer.concat([
       Buffer.from([0xff, 0xd8]),
       Buffer.from("LIVE-FRAME-TWO"),
       Buffer.from([0xff, 0xd9]),
     ]);
     door.send(jpeg2, { binary: true });
-    await waitUntil(() => viewMsgs.bins.length >= 2, "viewer1 jpeg2");
-    await waitUntil(() => view2Msgs.bins.length >= 1, "viewer2 jpeg2");
-    if (!view2Msgs.bins[0].equals(jpeg2)) fail("viewer2 should only get live frame two");
-    console.log("8. second viewer gets only the next live frame");
+    await waitUntil(() => viewMsgs.bins.some((b) => b.equals(jpeg2)), "viewer1 jpeg2");
+    await waitUntil(() => view2Msgs.bins.some((b) => b.equals(jpeg2)), "viewer2 jpeg2");
+    console.log("8. both viewers get the live frame");
 
     const redis = new IORedis(redisUrl, { maxRetriesPerRequest: 1, lazyConnect: true });
     await redis.connect();
@@ -244,11 +237,11 @@ async function main() {
 
     viewer.close();
     viewer2.close();
-    await waitUntil(
-      () => doorMsgs.texts.some((m) => m.type === "cam-off"),
-      "cam-off after last viewer"
-    );
-    console.log("11. last viewer left, board got cam-off");
+    await sleep(400);
+    if (doorMsgs.texts.some((m) => m.type === "cam-off")) {
+      fail("camera must stay on after viewers leave");
+    }
+    console.log("11. viewers left, camera still on");
 
     door.close();
     console.log("\nAll door/camera e2e checks passed.");

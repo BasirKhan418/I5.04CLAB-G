@@ -82,14 +82,10 @@ async function main() {
   let lastFrame: Buffer | null = null;
   let lastFrameAt = 0;
 
-  function tellDoorCam(on: boolean) {
+  function tellDoorCamOn() {
     for (const socket of clients) {
-      send(socket, { type: on ? "cam-on" : "cam-off" });
+      send(socket, { type: "cam-on" });
     }
-  }
-
-  function setViewerCount() {
-    tellDoorCam(viewers.size > 0);
   }
 
   function broadcastFrame(buf: Buffer) {
@@ -180,11 +176,9 @@ async function main() {
       type: "hello",
       holdMs: env.doorOpenMs,
       heartbeatMs: HEARTBEAT_MS,
-      cam: viewers.size > 0,
+      cam: true,
     });
-    if (viewers.size > 0) {
-      send(socket, { type: "cam-on" });
-    }
+    send(socket, { type: "cam-on" });
     console.info(`door client connected (${clients.size} live)`);
 
     const touch = () => {
@@ -232,28 +226,25 @@ async function main() {
       viewers.add(socket);
       send(socket, {
         type: "hello",
-        live: clients.size > 0,
+        live: true,
         viewers: viewers.size,
       });
-      if (viewers.size === 1) setViewerCount();
+      if (lastFrame && Date.now() - lastFrameAt < 2_000) {
+        try {
+          socket.send(lastFrame, { binary: true });
+        } catch {
+          /* next live frame will follow */
+        }
+      }
+      tellDoorCamOn();
       console.info(`cam viewer connected (${viewers.size} watching)`);
 
       socket.on("close", () => {
         viewers.delete(socket);
-        if (viewers.size === 0) {
-          lastFrame = null;
-          lastFrameAt = 0;
-          setViewerCount();
-        }
         console.info(`cam viewer left (${viewers.size} watching)`);
       });
       socket.on("error", () => {
         viewers.delete(socket);
-        if (viewers.size === 0) {
-          lastFrame = null;
-          lastFrameAt = 0;
-          setViewerCount();
-        }
       });
     })();
   });
@@ -287,9 +278,6 @@ async function main() {
       } catch {
         /* ignore */
       }
-    }
-    if (viewers.size === 0) {
-      /* cam-off already sent when last viewer left */
     }
   }, HEARTBEAT_MS);
 
