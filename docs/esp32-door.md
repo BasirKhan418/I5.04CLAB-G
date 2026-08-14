@@ -1,6 +1,8 @@
 # ESP32 door lock — persistent WebSocket
 
-The lab lock is an ESP32 (Arduino) that stays connected to this server. It does **not** log people in. It only pulses a GPIO pin HIGH when the app says the door should open.
+The lab lock is an ESP32 (Arduino) that stays connected to this server. It does **not** log people in. It only pulses GPIO when the app says the door should open.
+
+If you are using an **AI-Thinker ESP32-CAM**, use [esp32-cam.md](./esp32-cam.md) instead. GPIO 25/26/27 are camera pins on that board.
 
 Run the door socket next to `npm run dev` and `npm run worker`:
 

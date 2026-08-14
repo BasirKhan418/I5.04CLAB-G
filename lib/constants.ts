@@ -16,3 +16,5 @@ export const QUEUE_NAME = "gate-notify";
 export const GATE_CHANNEL = "lab-gate";
 export const DOOR_CHANNEL = "lab-door";
 export const DOOR_OPEN_MS = 2500;
+export const CAM_TICKET_SECONDS = 90;
+export const CAM_MAX_FRAME_BYTES = 160_000;

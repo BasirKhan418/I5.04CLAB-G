@@ -1,5 +1,5 @@
 import { jwtVerify, SignJWT, type JWTPayload } from "jose";
-import { SESSION_MAX_AGE } from "@/lib/constants";
+import { CAM_TICKET_SECONDS, SESSION_MAX_AGE } from "./constants";
 
 export type SessionPayload = {
   sub: string;
@@ -40,5 +40,22 @@ export async function verifySession(
     return payload as SessionPayload & JWTPayload;
   } catch {
     return null;
+  }
+}
+
+export async function signCamTicket(sub: string): Promise<string> {
+  return new SignJWT({ sub, purpose: "cam" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${CAM_TICKET_SECONDS}s`)
+    .sign(getSecret());
+}
+
+export async function verifyCamTicket(token: string): Promise<boolean> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret());
+    return payload.purpose === "cam" && typeof payload.sub === "string";
+  } catch {
+    return false;
   }
 }

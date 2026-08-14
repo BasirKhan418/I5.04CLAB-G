@@ -6,6 +6,7 @@ import { User } from "@/models/User";
 import { AccessLog } from "@/models/AccessLog";
 import Link from "next/link";
 import { BrutalCard } from "@/components/brutal";
+import { LiveCamera } from "@/components/live-camera";
 import { PendingApprovals } from "@/components/pending-approvals";
 import {
   formatDuration,
@@ -73,6 +74,19 @@ export default async function DashboardPage() {
       ) : null}
 
       <PendingApprovals />
+
+      <div className="space-y-2">
+        <div className="flex items-end justify-between gap-3">
+          <p className="text-sm font-medium text-ink/50">Door camera</p>
+          <Link
+            href="/dashboard/camera"
+            className="text-sm font-semibold text-lab-red"
+          >
+            Full view
+          </Link>
+        </div>
+        <LiveCamera compact />
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         {[
