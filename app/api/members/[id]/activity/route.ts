@@ -50,16 +50,9 @@ export async function GET(request: Request, context: RouteContext) {
   const dayPunchesRaw = [...report.punches]
     .reverse()
     .filter((punch) => istDateKey(new Date(punch.createdAt)) === day);
-  const firstIn = dayPunchesRaw.find(
-    (punch) =>
-      punch.direction === "in" &&
-      !isAfterWorkEnd(new Date(punch.createdAt), day)
-  );
   const dayPunches = dayPunchesRaw.map((punch) => {
     const created = new Date(punch.createdAt);
     const auditOnly = isAfterWorkEnd(created, day);
-    const extraIn =
-      punch.direction === "in" && !auditOnly && firstIn && punch.id !== firstIn.id;
     return {
       id: punch.id,
       direction: punch.direction,
@@ -67,12 +60,7 @@ export async function GET(request: Request, context: RouteContext) {
       createdAt: punch.createdAt,
       time: formatIstTime(created),
       auditOnly,
-      extraIn: Boolean(extraIn),
-      note: auditOnly
-        ? "After 5:30 PM · audit only"
-        : extraIn
-          ? "Extra IN · first IN counts"
-          : null,
+      note: auditOnly ? "After 5:30 PM · audit only" : null,
     };
   });
 
@@ -104,6 +92,19 @@ export async function GET(request: Request, context: RouteContext) {
     },
     enterCount: daySession?.enterCount ?? dayPunches.filter((p) => p.direction === "in").length,
     exitCount: daySession?.exitCount ?? dayPunches.filter((p) => p.direction === "out").length,
+    visits: report.visits
+      .filter((visit) => visit.date === day)
+      .map((visit) => ({
+        ...visit,
+        inTime: formatIstTime(visit.inAt),
+        outTime: visit.assumedOut
+          ? visit.outAt
+            ? formatIstTime(visit.outAt)
+            : WORK_END_LABEL
+          : visit.outAt
+            ? formatIstTime(visit.outAt)
+            : null,
+      })),
     dayPunches,
     punches: [...report.punches].reverse().map((punch) => ({
       ...punch,

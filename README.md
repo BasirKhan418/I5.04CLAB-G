@@ -160,7 +160,7 @@ When the lock should open:
 | Staff Approve visitor | Open |
 | Staff Deny | No |
 | Member Enter | Open |
-| Member Close | Open (walk out) |
+| Member Exit | Open (walk out) |
 | Dashboard sidebar **Allow** (reason required) | Open |
 | Public Allow link `/a/{token}` | Open |
 

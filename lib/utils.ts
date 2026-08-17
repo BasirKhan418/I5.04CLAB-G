@@ -30,3 +30,26 @@ export async function api<T>(
   }
   return json;
 }
+
+export async function downloadXlsx(path: string, filename: string) {
+  const res = await fetch(path);
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    return {
+      ok: false as const,
+      error: json?.error ?? "Could not export Excel.",
+    };
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  return { ok: true as const };
+}

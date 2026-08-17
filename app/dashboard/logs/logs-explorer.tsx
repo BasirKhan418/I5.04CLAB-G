@@ -7,7 +7,7 @@ import { BrutalButton, BrutalInput } from "@/components/brutal";
 import { HoursCharts } from "@/components/hours-charts";
 import { StatusPill } from "@/components/status-pill";
 import { useAdminUi } from "@/components/admin-ui";
-import { api } from "@/lib/utils";
+import { api, downloadXlsx } from "@/lib/utils";
 import {
   addIstDays,
   formatIstDateTime,
@@ -111,18 +111,14 @@ export function LogsExplorer() {
   async function exportExcel() {
     setExporting(true);
     try {
-      const res = await fetch(`/api/reports/export?from=${from}&to=${to}`);
-      if (!res.ok) {
-        toast("Could not export Excel.", "err");
+      const result = await downloadXlsx(
+        `/api/reports/export?from=${from}&to=${to}`,
+        `I5.04C-Lab-${from}-to-${to}.xlsx`
+      );
+      if (!result.ok) {
+        toast(result.error, "err");
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `I5.04C-Lab-${from}-to-${to}.xlsx`;
-      link.click();
-      URL.revokeObjectURL(url);
       toast("Excel downloaded.");
     } finally {
       setExporting(false);
@@ -195,9 +191,9 @@ export function LogsExplorer() {
         <div>
           <p className="text-sm font-semibold">Hours</p>
           <p className="text-xs text-ink/45">
-            Member hours (sum) = each person’s 9:00 AM–5:30 PM time, first IN to
-            last OUT. Not how long the room was occupied. After 5:30 PM is audit
-            only.
+            Member hours (sum) = each Enter→Exit visit inside 9:00 AM–5:30 PM.
+            Time between Exit and the next Enter is not counted. Missing Exit
+            assumes 5:30 PM. After 5:30 PM is audit only.
           </p>
         </div>
 

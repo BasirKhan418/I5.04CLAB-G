@@ -267,7 +267,7 @@ export function Kiosk() {
     setSignedIn(true);
   }
 
-  async function enterOrClose(direction: "in" | "out") {
+  async function enterOrExit(direction: "in" | "out") {
     setBusy(direction);
     setError("");
     setMessage("");
@@ -413,7 +413,7 @@ export function Kiosk() {
 
       <main className="relative z-10 mx-auto flex w-full max-w-lg flex-col items-center px-4 pb-10 sm:max-w-xl">
         <h1 className="rise-in mt-8 text-center font-heading text-4xl leading-tight text-balance sm:mt-12 sm:text-5xl">
-          Enter the lab
+          {mode === "member" && member?.inside ? "Exit the lab" : "Enter the lab"}
         </h1>
 
         {!booted ? (
@@ -457,8 +457,8 @@ export function Kiosk() {
               <p className="font-heading text-2xl">I work here</p>
               <p className="mt-1 text-sm text-white/80">
                 {signedIn && member
-                  ? `Continue as ${member.name}. Enter or Close.`
-                  : "Sign in to Enter or Close."}
+                  ? `Continue as ${member.name}. ${member.inside ? "Exit when you leave." : "Enter when you arrive."}`
+                  : "Sign in to Enter or Exit."}
               </p>
             </button>
           </div>
@@ -499,29 +499,32 @@ export function Kiosk() {
               <p className="mt-1 text-xs font-semibold tracking-widest text-ink/50 uppercase">
                 {member.inside ? "currently in" : "currently out"}
               </p>
-              <div className="mt-6 grid w-full grid-cols-2 gap-3">
-                <BrutalButton
-                  shine
-                  type="button"
-                  variant="mint"
-                  loading={busy === "in"}
-                  disabled={Boolean(busy)}
-                  className="min-w-0 py-3"
-                  onClick={() => enterOrClose("in")}
-                >
-                  Enter
-                </BrutalButton>
-                <BrutalButton
-                  shine
-                  type="button"
-                  variant="ink"
-                  loading={busy === "out"}
-                  disabled={Boolean(busy)}
-                  className="min-w-0 py-3"
-                  onClick={() => enterOrClose("out")}
-                >
-                  Close
-                </BrutalButton>
+              <div className="mt-6 w-full">
+                {member.inside ? (
+                  <BrutalButton
+                    shine
+                    type="button"
+                    variant="ink"
+                    loading={busy === "out"}
+                    disabled={Boolean(busy)}
+                    className="w-full py-3"
+                    onClick={() => enterOrExit("out")}
+                  >
+                    Exit
+                  </BrutalButton>
+                ) : (
+                  <BrutalButton
+                    shine
+                    type="button"
+                    variant="mint"
+                    loading={busy === "in"}
+                    disabled={Boolean(busy)}
+                    className="w-full py-3"
+                    onClick={() => enterOrExit("in")}
+                  >
+                    Enter
+                  </BrutalButton>
+                )}
               </div>
               {member.inside ? (
                 <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-lab-mint px-4 py-3 text-sm font-medium">

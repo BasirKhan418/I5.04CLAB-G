@@ -72,7 +72,7 @@ export async function buildHoursWorkbook(report: HoursReport) {
 
   summary.mergeCells("A2:D2");
   summary.getCell("A2").value =
-    `Generated ${formatIstDateTime(report.generatedAt)} IST · KPI window 9:00 AM–5:30 PM · first IN to last OUT · missing OUT assumes 5:30 PM · punches after 5:30 PM are audit only`;
+    `Generated ${formatIstDateTime(report.generatedAt)} IST · KPI window 9:00 AM–5:30 PM · each Enter to Exit · time outside the lab is not counted · missing OUT assumes 5:30 PM · punches after 5:30 PM are audit only`;
   summary.getCell("A2").font = { italic: true, size: 10, color: { argb: INK } };
   summary.getCell("A2").fill = {
     type: "pattern",
@@ -210,7 +210,7 @@ export async function buildHoursWorkbook(report: HoursReport) {
     to: `J${Math.max(1, byDayMember.size + 1)}`,
   };
 
-  const sessionSheet = workbook.addWorksheet("In / Out", {
+  const sessionSheet = workbook.addWorksheet("Visits", {
     views: [{ state: "frozen", ySplit: 1 }],
   });
   sessionSheet.columns = [
@@ -223,26 +223,24 @@ export async function buildHoursWorkbook(report: HoursReport) {
     { header: "Note", key: "note", width: 18 },
   ];
   paintHeader(sessionSheet.getRow(1), INK);
-  [...report.sessions]
-    .sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))
-    .forEach((session, index) => {
+  [...report.visits]
+    .sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name) || a.inAt.localeCompare(b.inAt))
+    .forEach((visit, index) => {
       const row = sessionSheet.addRow({
-        date: session.date,
-        name: session.name,
-        inAt: clock(session.inAt),
-        outAt: session.assumedOut ? "5:30 PM assumed" : clock(session.outAt),
-        hours: session.hours,
-        label: session.hoursLabel,
-        note: session.assumedOut
-          ? `No OUT in window · ${session.enterCount} IN / ${session.exitCount} OUT`
-          : `${session.enterCount} IN / ${session.exitCount} OUT`,
+        date: visit.date,
+        name: visit.name,
+        inAt: clock(visit.inAt),
+        outAt: visit.assumedOut ? "5:30 PM assumed" : clock(visit.outAt),
+        hours: visit.hours,
+        label: visit.hoursLabel,
+        note: visit.assumedOut ? "No Exit · assumed 5:30 PM" : "Enter to Exit",
       });
       zebra(row, index);
       row.getCell("hours").numFmt = "0.00";
     });
   sessionSheet.autoFilter = {
     from: "A1",
-    to: `G${Math.max(1, report.sessions.length + 1)}`,
+    to: `G${Math.max(1, report.visits.length + 1)}`,
   };
 
   const punchSheet = workbook.addWorksheet("All punches", {

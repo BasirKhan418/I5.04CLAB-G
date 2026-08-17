@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DoorStatusPill } from "@/components/door-status";
 import { TIMEZONE } from "@/lib/constants";
 
 function pageTitle(pathname: string) {
@@ -72,6 +73,7 @@ export function DashNavbar({
       <h1 className="min-w-0 flex-1 truncate font-heading text-lg sm:text-2xl">
         {title}
       </h1>
+      <DoorStatusPill />
       {clock ? (
         <p className="hidden shrink-0 text-xs text-ink/45 sm:block">
           IST · {clock}

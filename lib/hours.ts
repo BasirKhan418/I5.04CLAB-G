@@ -10,6 +10,13 @@ export type Session = {
   outAt: Date | null;
 };
 
+export type Visit = {
+  inAt: Date;
+  outAt: Date;
+  assumedOut: boolean;
+  hoursMs: number;
+};
+
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 export function istDateKey(date: Date = new Date()): string {
@@ -110,6 +117,7 @@ export type DayKpi = {
   enterCount: number;
   exitCount: number;
   auditCount: number;
+  visits: Visit[];
 };
 
 export function eventsOnIstDay(events: DirectionEvent[], day: string) {
@@ -131,54 +139,67 @@ export function dayKpi(
   const exitCount = dayEvents.filter((event) => event.direction === "out").length;
   const auditCount = dayEvents.filter((event) => event.createdAt > workEnd).length;
   const windowEvents = dayEvents.filter((event) => event.createdAt <= workEnd);
-  const firstIn = windowEvents.find((event) => event.direction === "in") ?? null;
-
-  if (!firstIn) {
-    return {
-      date: day,
-      firstIn: null,
-      lastOut: null,
-      kpiStart: null,
-      kpiEnd: null,
-      assumedOut: false,
-      hoursMs: 0,
-      enterCount,
-      exitCount,
-      auditCount,
-    };
-  }
-
-  const kpiStart = new Date(
-    Math.max(firstIn.createdAt.getTime(), workStart.getTime())
-  );
-  const afterFirst = windowEvents.filter(
-    (event) => event.createdAt.getTime() >= firstIn.createdAt.getTime()
-  );
-  const lastEvent = afterFirst[afterFirst.length - 1];
-  const lastOut =
-    [...afterFirst].reverse().find((event) => event.direction === "out") ?? null;
-  const closed = lastEvent?.direction === "out" && Boolean(lastOut);
-
-  let assumedOut = false;
-  let kpiEnd: Date;
-  if (closed && lastOut) {
-    kpiEnd = new Date(Math.min(lastOut.createdAt.getTime(), workEnd.getTime()));
-  } else {
-    assumedOut = true;
-    kpiEnd = new Date(Math.min(now.getTime(), workEnd.getTime()));
-  }
-
-  return {
+  const empty: DayKpi = {
     date: day,
-    firstIn: firstIn.createdAt,
-    lastOut: closed && lastOut ? lastOut.createdAt : null,
-    kpiStart,
-    kpiEnd,
-    assumedOut,
-    hoursMs: Math.max(0, kpiEnd.getTime() - kpiStart.getTime()),
+    firstIn: null,
+    lastOut: null,
+    kpiStart: null,
+    kpiEnd: null,
+    assumedOut: false,
+    hoursMs: 0,
     enterCount,
     exitCount,
     auditCount,
+    visits: [],
+  };
+
+  const visits: Visit[] = [];
+  let assumedOut = false;
+  let hoursMs = 0;
+
+  for (const session of pairSessions(windowEvents)) {
+    const start = new Date(Math.max(session.inAt.getTime(), workStart.getTime()));
+    let end: Date;
+    let assumed = false;
+    if (session.outAt) {
+      end = new Date(Math.min(session.outAt.getTime(), workEnd.getTime()));
+    } else {
+      assumed = true;
+      assumedOut = true;
+      end = new Date(Math.min(now.getTime(), workEnd.getTime()));
+    }
+    const visitMs = Math.max(0, end.getTime() - start.getTime());
+    hoursMs += visitMs;
+    visits.push({
+      inAt: session.inAt,
+      outAt: session.outAt ?? end,
+      assumedOut: assumed,
+      hoursMs: visitMs,
+    });
+  }
+
+  if (visits.length === 0) {
+    return empty;
+  }
+
+  const firstVisit = visits[0];
+  const lastVisit = visits[visits.length - 1];
+  const lastClosed = [...visits].reverse().find((visit) => !visit.assumedOut);
+
+  return {
+    date: day,
+    firstIn: firstVisit.inAt,
+    lastOut: lastClosed?.outAt ?? null,
+    kpiStart: new Date(Math.max(firstVisit.inAt.getTime(), workStart.getTime())),
+    kpiEnd: lastVisit.assumedOut
+      ? new Date(Math.min(now.getTime(), workEnd.getTime()))
+      : new Date(Math.min(lastVisit.outAt.getTime(), workEnd.getTime())),
+    assumedOut,
+    hoursMs,
+    enterCount,
+    exitCount,
+    auditCount,
+    visits,
   };
 }
 

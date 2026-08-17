@@ -6,6 +6,7 @@ import { User } from "@/models/User";
 import { AccessLog } from "@/models/AccessLog";
 import Link from "next/link";
 import { BrutalCard } from "@/components/brutal";
+import { DoorStatusCard } from "@/components/door-status";
 import { PendingApprovals } from "@/components/pending-approvals";
 import {
   formatDuration,
@@ -74,7 +75,7 @@ export default async function DashboardPage() {
 
       <PendingApprovals />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {[
           { label: "Inside now", value: String(report.totals.insideNow) },
           { label: "Your hours today", value: myHoursToday },
@@ -86,6 +87,9 @@ export default async function DashboardPage() {
             <p className="mt-1 font-heading text-2xl sm:text-3xl">{stat.value}</p>
           </BrutalCard>
         ))}
+        <div className="col-span-2 lg:col-span-1">
+          <DoorStatusCard />
+        </div>
       </div>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">

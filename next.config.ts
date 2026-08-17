@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     "ioredis",
     "nodemailer",
     "ffmpeg-static",
+    "exceljs",
   ],
 };
 

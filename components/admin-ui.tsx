@@ -9,6 +9,7 @@ import {
 } from "react";
 import { AddMemberModal } from "@/components/add-member-modal";
 import { DoorOpenModal } from "@/components/door-open-modal";
+import { useDoorPresence, type DoorPresenceView } from "@/hooks/use-door-presence";
 import { useGateStream } from "@/hooks/use-gate-stream";
 import { api, cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ type AdminUi = {
   pending: PendingItem[];
   pendingCount: number;
   refreshPending: () => Promise<void>;
+  door: DoorPresenceView;
   toast: (message: string, tone?: ToastTone) => void;
 };
 
@@ -63,6 +65,7 @@ export function AdminUiProvider({
   const [doorOpen, setDoorOpen] = useState(false);
   const [pending, setPending] = useState<PendingItem[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const door = useDoorPresence();
   const openAddMember = useCallback(() => setOpen(true), []);
   const openDoor = useCallback(() => setDoorOpen(true), []);
 
@@ -114,6 +117,7 @@ export function AdminUiProvider({
         pending,
         pendingCount: pending.length,
         refreshPending,
+        door,
         toast,
       }}
     >

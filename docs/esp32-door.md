@@ -17,7 +17,7 @@ Health check: `http://<server-ip>:8787/health`
 | Staff **Approve** visitor | Open |
 | Staff **Deny** | No |
 | Member **Enter** | Open |
-| Member **Close** | Open (so they can walk out) |
+| Member **Exit** | Open (so they can walk out) |
 | Dashboard **Allow** (reason required) | Open |
 
 Hold time is `holdMs` in the `open` message (default **2500 ms**). Change `DOOR_OPEN_MS` in `.env` if you want 3 seconds.

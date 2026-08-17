@@ -3,10 +3,14 @@ import { createServer } from "http";
 import type { Socket } from "net";
 import IORedis from "ioredis";
 import { WebSocket, WebSocketServer } from "ws";
-import { DOOR_CHANNEL } from "../lib/constants";
+import {
+  DOOR_CHANNEL,
+  DOOR_PRESENCE_CHANNEL,
+  DOOR_PRESENCE_KEY,
+} from "../lib/constants";
 import { getEnv } from "../lib/env";
 
-type DoorSocket = WebSocket & { misses?: number };
+type DoorSocket = WebSocket & { misses?: number; device?: string };
 
 const HEARTBEAT_MS = 15_000;
 const MAX_MISSES = 4;
@@ -46,8 +50,43 @@ async function main() {
   }
 
   const clients = new Set<DoorSocket>();
+  const pub = new IORedis(env.redisUrl, {
+    maxRetriesPerRequest: null,
+    retryStrategy: (times: number) => Math.min(1000 * times, 8000),
+    enableOfflineQueue: true,
+  });
+
+  function liveSockets() {
+    return [...clients].filter((socket) => socket.readyState === WebSocket.OPEN);
+  }
+
+  function presenceSnapshot() {
+    const live = liveSockets();
+    const devices = live
+      .map((socket) => socket.device)
+      .filter((name): name is string => Boolean(name));
+    return {
+      type: "presence" as const,
+      online: live.length > 0,
+      clients: live.length,
+      devices,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async function publishPresence() {
+    const snapshot = presenceSnapshot();
+    try {
+      await pub.set(DOOR_PRESENCE_KEY, JSON.stringify(snapshot), "EX", 90);
+      await pub.publish(DOOR_PRESENCE_CHANNEL, JSON.stringify(snapshot));
+    } catch {
+      /* dashboard falls back to /health */
+    }
+  }
+
   const httpServer = createServer((req, res) => {
     if (req.url?.startsWith("/health")) {
+      const snapshot = presenceSnapshot();
       res.writeHead(200, {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",
@@ -55,7 +94,9 @@ async function main() {
       res.end(
         JSON.stringify({
           ok: true,
-          clients: clients.size,
+          online: snapshot.online,
+          clients: snapshot.clients,
+          devices: snapshot.devices,
           uptime: Math.round(process.uptime()),
         })
       );
@@ -93,7 +134,8 @@ async function main() {
       holdMs: env.doorOpenMs,
       heartbeatMs: HEARTBEAT_MS,
     });
-    console.info(`door client connected (${clients.size} live)`);
+    console.info(`door client connected (${liveSockets().length} live)`);
+    void publishPresence();
 
     const touch = () => {
       socket.misses = 0;
@@ -103,9 +145,19 @@ async function main() {
     socket.on("message", (raw) => {
       touch();
       try {
-        const msg = JSON.parse(String(raw)) as { type?: string };
+        const msg = JSON.parse(String(raw)) as {
+          type?: string;
+          device?: string;
+        };
         if (msg.type === "ping") {
           send(socket, { type: "pong" });
+        }
+        if (msg.type === "hello" && msg.device) {
+          const device = String(msg.device).trim().slice(0, 64);
+          if (device && socket.device !== device) {
+            socket.device = device;
+            void publishPresence();
+          }
         }
       } catch {
         /* ignore */
@@ -113,10 +165,12 @@ async function main() {
     });
     socket.on("close", () => {
       clients.delete(socket);
-      console.info(`door client left (${clients.size} live)`);
+      console.info(`door client left (${liveSockets().length} live)`);
+      void publishPresence();
     });
     socket.on("error", () => {
       clients.delete(socket);
+      void publishPresence();
     });
   });
 
@@ -140,6 +194,7 @@ async function main() {
         /* ESP32 may ignore RFC ping; JSON ping above is the real keepalive */
       }
     }
+    void publishPresence();
   }, HEARTBEAT_MS);
 
   const redisOpts = {
@@ -170,7 +225,14 @@ async function main() {
   sub.on("error", (err) => {
     console.error("door redis error", err.message);
   });
+  sub.on("ready", () => {
+    void listenDoor();
+  });
+  pub.on("ready", () => {
+    void publishPresence();
+  });
   await listenDoor();
+  void publishPresence();
 
   const shutdown = () => {
     clearInterval(heartbeat);
@@ -184,6 +246,7 @@ async function main() {
     wss.close();
     httpServer.close();
     void sub.quit();
+    void pub.quit();
     process.exit(0);
   };
   process.on("SIGINT", shutdown);

@@ -8,7 +8,7 @@ import { EditMemberModal } from "@/components/edit-member-modal";
 import { HoursCharts } from "@/components/hours-charts";
 import { StatusPill } from "@/components/status-pill";
 import { useAdminUi } from "@/components/admin-ui";
-import { api, cn } from "@/lib/utils";
+import { api, cn, downloadXlsx } from "@/lib/utils";
 import {
   istDateKey,
   lastDayOfMonth,
@@ -16,7 +16,7 @@ import {
   shiftMonthStart,
   startOfWeekIst,
 } from "@/lib/hours";
-import type { DayPoint, MemberHours, ReportSession } from "@/lib/reports";
+import type { DayPoint, MemberHours, ReportSession, ReportVisit } from "@/lib/reports";
 
 type Punch = {
   id: string;
@@ -26,8 +26,12 @@ type Punch = {
   time: string;
   date?: string;
   auditOnly: boolean;
-  extraIn?: boolean;
   note?: string | null;
+};
+
+type VisitRow = ReportVisit & {
+  inTime: string;
+  outTime: string | null;
 };
 
 type Activity = {
@@ -54,6 +58,7 @@ type Activity = {
   };
   enterCount: number;
   exitCount: number;
+  visits: VisitRow[];
   dayPunches: Punch[];
   punches: Punch[];
   days: DayPoint[];
@@ -117,21 +122,15 @@ export function MemberActivity({ memberId }: { memberId: string }) {
   async function exportExcel() {
     setExporting(true);
     try {
-      const res = await fetch(
-        `/api/reports/export?from=${from}&to=${to}&userId=${memberId}`
+      const who = (data?.name ?? "member").replace(/[^\w]+/g, "-");
+      const result = await downloadXlsx(
+        `/api/reports/export?from=${from}&to=${to}&userId=${memberId}`,
+        `I5.04C-Lab-${who}-${from}-to-${to}.xlsx`
       );
-      if (!res.ok) {
-        toast("Could not export Excel.", "err");
+      if (!result.ok) {
+        toast(result.error, "err");
         return;
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const who = (data?.name ?? "member").replace(/[^\w]+/g, "-");
-      link.href = url;
-      link.download = `I5.04C-Lab-${who}-${from}-to-${to}.xlsx`;
-      link.click();
-      URL.revokeObjectURL(url);
       toast("Excel downloaded.");
     } finally {
       setExporting(false);
@@ -161,7 +160,7 @@ export function MemberActivity({ memberId }: { memberId: string }) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {data ? <StatusPill inside={data.inside} /> : null}
             <span className="text-xs text-ink/45">
-              Hours {data?.window ?? "9:00 AM – 5:30 PM"} · first IN to last OUT
+              Hours {data?.window ?? "9:00 AM – 5:30 PM"} · each Enter to Exit. Time outside the lab is not counted.
             </span>
           </div>
         </div>
@@ -270,14 +269,27 @@ export function MemberActivity({ memberId }: { memberId: string }) {
           <section className="rounded-[24px] border border-ink/10 bg-white p-4">
             <p className="font-semibold">Day log · {date}</p>
             <p className="mt-1 text-sm text-ink/60">
-              First IN {data.kpi.firstIn ?? "—"} →{" "}
-              {data.kpi.assumedOut
-                ? "assumed 5:30 PM"
-                : data.kpi.lastOut ?? "—"}
-              {" · "}
-              {data.enterCount} enter · {data.exitCount} exit
+              {data.enterCount} enter · {data.exitCount} exit · time in lab only
             </p>
             <p className="mt-1 font-heading text-2xl">{data.kpi.hoursLabel}</p>
+            {data.visits.length > 0 ? (
+              <ul className="mt-3 divide-y divide-ink/10 rounded-xl border border-ink/10">
+                {data.visits.map((visit, index) => (
+                  <li
+                    key={`${visit.inAt}-${index}`}
+                    className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+                  >
+                    <span>
+                      {visit.inTime} →{" "}
+                      {visit.assumedOut
+                        ? "assumed 5:30 PM"
+                        : visit.outTime ?? "—"}
+                    </span>
+                    <span className="font-semibold">{visit.hoursLabel}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {data.dayPunches.length === 0 ? (
               <p className="mt-3 text-sm text-ink/50">No punches on this day.</p>
             ) : (

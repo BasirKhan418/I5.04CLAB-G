@@ -15,4 +15,6 @@ export const S3_PREFIX = "icccc-qr";
 export const QUEUE_NAME = "gate-notify";
 export const GATE_CHANNEL = "lab-gate";
 export const DOOR_CHANNEL = "lab-door";
+export const DOOR_PRESENCE_CHANNEL = "lab-door-presence";
+export const DOOR_PRESENCE_KEY = "lab-door:presence";
 export const DOOR_OPEN_MS = 2500;

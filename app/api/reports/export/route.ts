@@ -23,20 +23,25 @@ export async function GET(request: Request) {
     return jsonError(report.error);
   }
 
-  const workbook = await buildHoursWorkbook(report);
-  const buffer = await workbook.xlsx.writeBuffer();
-  const person =
-    report.members.length === 1
-      ? report.members[0].name.replace(/[^\w]+/g, "-")
-      : "lab";
-  const filename = `I5.04C-Lab-${person}-${report.from}-to-${report.to}.xlsx`;
+  try {
+    const workbook = await buildHoursWorkbook(report);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const person =
+      report.members.length === 1
+        ? report.members[0].name.replace(/[^\w]+/g, "-")
+        : "lab";
+    const filename = `I5.04C-Lab-${person}-${report.from}-to-${report.to}.xlsx`;
 
-  return new NextResponse(Buffer.from(buffer), {
-    headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Cache-Control": "no-store",
-    },
-  });
+    return new NextResponse(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    console.error("excel export failed", error);
+    return jsonError("Could not build Excel file");
+  }
 }

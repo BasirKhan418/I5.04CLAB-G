@@ -44,6 +44,19 @@ export type ReportSession = {
   auditCount: number;
 };
 
+export type ReportVisit = {
+  userId: string;
+  name: string;
+  email: string;
+  date: string;
+  inAt: string;
+  outAt: string | null;
+  hoursMs: number;
+  hours: number;
+  hoursLabel: string;
+  assumedOut: boolean;
+};
+
 export type MemberHours = {
   userId: string;
   name: string;
@@ -72,6 +85,7 @@ export type HoursReport = {
   generatedAt: string;
   punches: ReportPunch[];
   sessions: ReportSession[];
+  visits: ReportVisit[];
   members: MemberHours[];
   days: DayPoint[];
   totals: {
@@ -172,6 +186,7 @@ export async function buildHoursReport(
     });
 
   const sessions: ReportSession[] = [];
+  const visits: ReportVisit[] = [];
   const hoursByDay = new Map(span.map((date) => [date, 0]));
   const memberHours: MemberHours[] = users.map((user) => {
     const userId = String(user._id);
@@ -213,6 +228,20 @@ export async function buildHoursReport(
         exitCount: kpi.exitCount,
         auditCount: kpi.auditCount,
       });
+      for (const visit of kpi.visits) {
+        visits.push({
+          userId,
+          name: user.name,
+          email: user.email,
+          date,
+          inAt: visit.inAt.toISOString(),
+          outAt: visit.assumedOut ? null : visit.outAt.toISOString(),
+          hoursMs: visit.hoursMs,
+          hours: msToHours(visit.hoursMs),
+          hoursLabel: formatDuration(visit.hoursMs),
+          assumedOut: visit.assumedOut,
+        });
+      }
     }
 
     const avgMs = daysPresent ? totalHoursMs / daysPresent : 0;
@@ -259,6 +288,7 @@ export async function buildHoursReport(
     generatedAt: now.toISOString(),
     punches: [...punches].reverse(),
     sessions,
+    visits,
     members: memberHours.sort((a, b) => b.totalHoursMs - a.totalHoursMs),
     days,
     totals: {
