@@ -11,6 +11,8 @@ import {
   SESSION_COOKIE,
 } from "../lib/constants";
 import { getEnv } from "../lib/env";
+import { enqueueDoorOpen, flushQueuedDoorOpens } from "../lib/door-queue";
+import type { DoorOpenReason } from "../lib/door";
 import { verifyCamTicket, verifySession } from "../lib/jwt";
 
 type DoorSocket = WebSocket & { misses?: number; device?: string };
@@ -226,6 +228,11 @@ async function main() {
     }
     console.info(`door client connected (${liveSockets().length} live)`);
     void publishPresence();
+    void flushQueuedDoorOpens().then((n) => {
+      if (n > 0) {
+        console.info(`flushed ${n} queued door open(s)`);
+      }
+    });
 
     const touch = () => {
       socket.misses = 0;
@@ -366,6 +373,20 @@ async function main() {
       }
     }
     console.info(`door open sent to ${n} client(s)`);
+    if (n > 0) return;
+    try {
+      const event = JSON.parse(raw) as {
+        type?: string;
+        reason?: DoorOpenReason;
+        at?: string;
+      };
+      if (event.type === "open" && event.reason) {
+        void enqueueDoorOpen(event.reason, event.at);
+        console.info("no live board, open queued until it reconnects");
+      }
+    } catch {
+      /* ignore */
+    }
   });
   sub.on("error", (err) => {
     console.error("door redis error", err.message);

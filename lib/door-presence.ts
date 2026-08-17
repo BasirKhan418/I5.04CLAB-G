@@ -64,6 +64,13 @@ async function readHealth(configured: boolean): Promise<DoorPresence | null> {
   }
 }
 
+export async function getLiveDoorPresence(): Promise<DoorPresence> {
+  const configured = Boolean(getEnv().doorDeviceToken);
+  const fromHealth = await readHealth(configured);
+  if (fromHealth) return fromHealth;
+  return getDoorPresence();
+}
+
 export async function getDoorPresence(): Promise<DoorPresence> {
   const configured = Boolean(getEnv().doorDeviceToken);
   try {

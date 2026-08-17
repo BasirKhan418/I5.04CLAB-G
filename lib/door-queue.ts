@@ -1,7 +1,7 @@
-import { Queue, Worker, type Job } from "bullmq";
+import { Queue, type Job } from "bullmq";
 import IORedis from "ioredis";
 import { DOOR_OPEN_QUEUE, DOOR_OPEN_TTL_MS } from "@/lib/constants";
-import { getDoorPresence, subscribeDoorPresence } from "@/lib/door-presence";
+import { getLiveDoorPresence } from "@/lib/door-presence";
 import { publishDoorOpen, type DoorOpenReason } from "@/lib/door";
 import { getEnv } from "@/lib/env";
 
@@ -18,7 +18,6 @@ export type DoorDelivery = {
 
 const globalForDoorQueue = globalThis as unknown as {
   doorOpenQueue?: Queue<DoorOpenJob>;
-  doorOpenWorker?: Worker<DoorOpenJob>;
   doorQueueStarted?: boolean;
 };
 
@@ -49,9 +48,34 @@ function jobAgeMs(job: Job<DoorOpenJob>) {
   return Date.now() - (job.timestamp || Date.now());
 }
 
-async function dropStaleJobs() {
-  const queue = getDoorOpenQueue();
-  const waiting = await queue.getJobs(["waiting", "delayed"]);
+function eventAgeMs(at: string) {
+  const then = new Date(at).getTime();
+  if (!Number.isFinite(then)) return DOOR_OPEN_TTL_MS + 1;
+  return Date.now() - then;
+}
+
+export async function enqueueDoorOpen(
+  reason: DoorOpenReason,
+  at = new Date().toISOString()
+) {
+  if (eventAgeMs(at) > DOOR_OPEN_TTL_MS) return null;
+  try {
+    return await getDoorOpenQueue().add(
+      "open",
+      { reason, at },
+      { jobId: `open-${reason}-${at}` }
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function dropStaleDoorJobs() {
+  const waiting = await getDoorOpenQueue().getJobs([
+    "waiting",
+    "delayed",
+    "failed",
+  ]);
   await Promise.all(
     waiting
       .filter((job) => jobAgeMs(job) > DOOR_OPEN_TTL_MS)
@@ -59,32 +83,32 @@ async function dropStaleJobs() {
   );
 }
 
-async function processOpen(job: Job<DoorOpenJob>) {
-  if (jobAgeMs(job) > DOOR_OPEN_TTL_MS) {
-    return { dropped: true as const };
+export async function flushQueuedDoorOpens() {
+  await dropStaleDoorJobs();
+  const jobs = await getDoorOpenQueue().getJobs(["waiting", "delayed", "failed"]);
+  let sent = 0;
+  for (const job of jobs) {
+    if (jobAgeMs(job) > DOOR_OPEN_TTL_MS) {
+      await job.remove().catch(() => undefined);
+      continue;
+    }
+    await publishDoorOpen(job.data.reason);
+    await job.remove().catch(() => undefined);
+    sent += 1;
   }
-  const presence = await getDoorPresence();
-  if (!presence.online) {
-    throw new Error("door offline");
-  }
-  await publishDoorOpen(job.data.reason);
-  return { dropped: false as const };
+  return sent;
 }
 
 export async function requestDoorOpen(
   reason: DoorOpenReason
 ): Promise<DoorDelivery> {
-  const presence = await getDoorPresence();
+  const presence = await getLiveDoorPresence();
   if (presence.online) {
     await publishDoorOpen(reason);
     return { status: "sent", online: true };
   }
 
-  await getDoorOpenQueue().add(
-    "open",
-    { reason, at: new Date().toISOString() },
-    { jobId: `open-${reason}-${Date.now()}` }
-  );
+  await enqueueDoorOpen(reason);
   return {
     status: "queued",
     online: false,
@@ -95,35 +119,7 @@ export async function requestDoorOpen(
 export function startDoorQueueRuntime() {
   if (globalForDoorQueue.doorQueueStarted) return;
   globalForDoorQueue.doorQueueStarted = true;
-
-  const worker = new Worker<DoorOpenJob>(DOOR_OPEN_QUEUE, processOpen, {
-    connection: queueConnection(),
-    concurrency: 1,
-    autorun: false,
-  });
-  globalForDoorQueue.doorOpenWorker = worker;
-
-  const apply = async (online: boolean) => {
-    await dropStaleJobs();
-    if (online) {
-      if (worker.isPaused()) await worker.resume();
-      if (!worker.isRunning()) void worker.run();
-      return;
-    }
-    if (worker.isRunning() && !worker.isPaused()) {
-      await worker.pause();
-    }
-  };
-
-  void getDoorPresence()
-    .then((presence) => apply(presence.online))
-    .catch(() => apply(false));
-
-  subscribeDoorPresence((presence) => {
-    void apply(presence.online);
-  });
-
   setInterval(() => {
-    void dropStaleJobs();
-  }, 20_000);
+    void dropStaleDoorJobs();
+  }, 15_000);
 }
