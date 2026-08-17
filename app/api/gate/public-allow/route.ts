@@ -49,5 +49,6 @@ export async function POST(request: Request) {
     already: result.already,
     pulsed: result.pulsed,
     name: result.name,
+    door: result.door,
   });
 }

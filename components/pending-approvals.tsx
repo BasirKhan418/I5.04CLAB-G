@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BrutalButton } from "@/components/brutal";
 import { useAdminUi } from "@/components/admin-ui";
 import { VisitorMediaPeek } from "@/components/visitor-media-peek";
+import { doorDeliveryNote } from "@/lib/door-delivery";
 import { api } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 
@@ -13,7 +14,9 @@ export function PendingApprovals() {
 
   async function act(id: string, action: "approve" | "deny") {
     setBusyId(`${id}:${action}`);
-    const res = await api("/api/gate/approve", {
+    const res = await api<{
+      door?: { status: "sent" | "queued"; online: boolean };
+    }>("/api/gate/approve", {
       method: "POST",
       body: JSON.stringify({ id, action }),
     });
@@ -22,7 +25,11 @@ export function PendingApprovals() {
       toast(res.error, "err");
       return;
     }
-    toast(action === "approve" ? "Visitor approved." : "Visitor denied.");
+    if (action === "deny") {
+      toast("Visitor denied.");
+    } else {
+      toast(`Visitor approved. ${doorDeliveryNote(res.data.door)}`);
+    }
     await refreshPending();
   }
 

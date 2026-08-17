@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { BrutalButton, BrutalTextarea } from "@/components/brutal";
 import { LiveCamera } from "@/components/live-camera";
+import { doorDeliveryNote } from "@/lib/door-delivery";
 import { api } from "@/lib/utils";
 
 export function DoorOpenModal({
@@ -29,7 +30,9 @@ export function DoorOpenModal({
     e.preventDefault();
     setBusy(true);
     setError("");
-    const res = await api("/api/gate/open", {
+    const res = await api<{
+      door?: { status: "sent" | "queued"; online: boolean };
+    }>("/api/gate/open", {
       method: "POST",
       body: JSON.stringify({ reason }),
     });
@@ -41,7 +44,7 @@ export function DoorOpenModal({
     }
     setReason("");
     onOpenChange(false);
-    toast("Door opening.");
+    toast(doorDeliveryNote(res.data.door));
   }
 
   return (

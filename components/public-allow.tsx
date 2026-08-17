@@ -6,6 +6,7 @@ import { KioskDoorStatus } from "@/components/door-status";
 import { BrutalButton, BrutalCard } from "@/components/brutal";
 import { ConfettiBurst, GpayMark } from "@/components/gate-celebrate";
 import { playDeniedSound, playGateOpenSound, unlockKioskAudio } from "@/lib/kiosk-audio";
+import { doorDeliveryNote } from "@/lib/door-delivery";
 import { api } from "@/lib/utils";
 
 export function PublicAllow({
@@ -23,6 +24,7 @@ export function PublicAllow({
   const [busy, setBusy] = useState(false);
   const [confetti, setConfetti] = useState(false);
   const [error, setError] = useState("");
+  const [doorNote, setDoorNote] = useState("");
 
   async function act(action: "allow" | "deny") {
     setBusy(true);
@@ -33,6 +35,7 @@ export function PublicAllow({
       already?: boolean;
       pulsed?: boolean;
       name: string;
+      door?: { status: "sent" | "queued"; online: boolean };
     }>("/api/gate/public-allow", {
       method: "POST",
       body: JSON.stringify({ token, action }),
@@ -44,6 +47,7 @@ export function PublicAllow({
     }
     setStatus(res.data.status);
     if (res.data.status === "approved") {
+      setDoorNote(doorDeliveryNote(res.data.door));
       setConfetti(true);
       playGateOpenSound();
       window.setTimeout(() => setConfetti(false), 2200);
@@ -67,7 +71,7 @@ export function PublicAllow({
               <GpayMark kind="ok" />
               <h1 className="mt-4 font-heading text-3xl">You&apos;re in</h1>
               <p className="mt-2 text-sm text-ink/70">
-                Door opening for {name}.
+                {doorNote || `Door opening for ${name}.`}
               </p>
               <BrutalButton
                 shine

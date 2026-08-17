@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { connectDB } from "@/lib/db";
 import { jsonError, jsonOk, requireSession } from "@/lib/api";
-import { publishDoorOpen } from "@/lib/door";
+import { requestDoorOpen } from "@/lib/door-queue";
 import { AccessLog } from "@/models/AccessLog";
 import { User } from "@/models/User";
 
@@ -38,11 +38,12 @@ export async function POST(request: Request) {
     approvedAt: new Date(),
   });
 
-  await publishDoorOpen("manual");
+  const door = await requestDoorOpen("manual");
 
   return jsonOk({
     id: String(log._id),
     reason: log.reason,
     at: log.createdAt,
+    door,
   });
 }

@@ -7,7 +7,7 @@ import { getSession } from "@/lib/session";
 import { nextMemberDirection } from "@/lib/access";
 import { User } from "@/models/User";
 import { AccessLog } from "@/models/AccessLog";
-import { publishDoorOpen } from "@/lib/door";
+import { requestDoorOpen } from "@/lib/door-queue";
 
 const bodySchema = z.object({
   email: z.string().email().optional(),
@@ -64,20 +64,22 @@ export async function POST(request: Request) {
       kind: "member",
       direction: "in",
     }).sort({ createdAt: -1 });
-    await publishDoorOpen("member-in");
+    const door = await requestDoorOpen("member-in");
     return jsonOk({
       direction: "in",
       name: user.name,
       already: true,
       at: lastIn?.createdAt ?? new Date(),
+      door,
     });
   }
   if (direction === "out" && next === "in") {
-    await publishDoorOpen("member-out");
+    const door = await requestDoorOpen("member-out");
     return jsonOk({
       direction: "out",
       name: user.name,
       already: true,
+      door,
     });
   }
 
@@ -90,12 +92,15 @@ export async function POST(request: Request) {
     status: "approved",
   });
 
-  await publishDoorOpen(direction === "in" ? "member-in" : "member-out");
+  const door = await requestDoorOpen(
+    direction === "in" ? "member-in" : "member-out"
+  );
 
   return jsonOk({
     direction,
     name: user.name,
     already: false,
     at: log.createdAt,
+    door,
   });
 }

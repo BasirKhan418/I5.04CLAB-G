@@ -2,7 +2,7 @@
 
 import { BrutalCard } from "@/components/brutal";
 import { useAdminUi } from "@/components/admin-ui";
-import { useDoorPresence } from "@/hooks/use-door-presence";
+import { useDoorPresence } from "@/components/door-presence-provider";
 import { cn } from "@/lib/utils";
 import type { DoorPresence } from "@/lib/door-presence-types";
 
@@ -12,11 +12,13 @@ function deviceLabel(count: number) {
 
 export function DoorStatusCard() {
   const { door } = useAdminUi();
-  const status = !door.configured
-    ? "Not set"
-    : door.online
-      ? "Online"
-      : "Offline";
+  const status = !door.ready
+    ? "…"
+    : !door.configured
+      ? "Not set"
+      : door.online
+        ? "Online"
+        : "Offline";
 
   return (
     <BrutalCard className="p-3 sm:p-4">
@@ -48,14 +50,18 @@ export function DoorStatusMark({
   door,
   className,
 }: {
-  door: Pick<DoorPresence, "online" | "clients" | "configured">;
+  door: Pick<DoorPresence, "online" | "clients" | "configured"> & {
+    ready?: boolean;
+  };
   className?: string;
 }) {
-  const status = !door.configured
-    ? "Door · —"
-    : door.online
-      ? `Door · Online · ${door.clients}`
-      : "Door · Offline";
+  const status = !door.ready
+    ? "Door · …"
+    : !door.configured
+      ? "Door · —"
+      : door.online
+        ? `Door · Online · ${door.clients}`
+        : "Door · Offline";
 
   return (
     <p
@@ -64,19 +70,27 @@ export function DoorStatusMark({
         className
       )}
       title={
-        door.online
-          ? `${deviceLabel(door.clients)} connected`
-          : "Door lock is offline"
+        !door.ready
+          ? "Checking door lock"
+          : door.online
+            ? `${deviceLabel(door.clients)} connected`
+            : "Door lock is offline"
       }
     >
       <span
         className={cn(
           "size-1.5 rounded-full",
-          door.online ? "bg-lab-mint" : "bg-ink/25"
+          !door.ready
+            ? "bg-ink/20"
+            : door.online
+              ? "bg-lab-mint"
+              : "bg-ink/25"
         )}
         aria-hidden
       />
-      <span className="sm:hidden">{door.online ? "Online" : "Offline"}</span>
+      <span className="sm:hidden">
+        {!door.ready ? "…" : door.online ? "Online" : "Offline"}
+      </span>
       <span className="hidden sm:inline">{status}</span>
     </p>
   );

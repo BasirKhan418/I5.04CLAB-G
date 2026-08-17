@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
-import { publishDoorOpen } from "@/lib/door";
+import { requestDoorOpen, type DoorDelivery } from "@/lib/door-queue";
 import { publishGateEvent } from "@/lib/realtime";
 import { AccessLog } from "@/models/AccessLog";
 
@@ -44,8 +44,9 @@ export async function decideVisitorRequest(opts: {
     status: log.status,
   });
   await publishGateEvent({ type: "pending" });
+  let door: DoorDelivery | undefined;
   if (log.status === "approved") {
-    await publishDoorOpen("visitor-approve");
+    door = await requestDoorOpen("visitor-approve");
   }
 
   return {
@@ -54,6 +55,7 @@ export async function decideVisitorRequest(opts: {
     id: String(log._id),
     status: log.status,
     name: log.displayName,
+    door,
   };
 }
 
@@ -69,7 +71,7 @@ export async function publicDoorAllow(id: string) {
   }
 
   if (log.status === "approved") {
-    await publishDoorOpen("visitor-approve");
+    const door = await requestDoorOpen("visitor-approve");
     return {
       ok: true as const,
       already: true,
@@ -77,6 +79,7 @@ export async function publicDoorAllow(id: string) {
       id: String(log._id),
       status: log.status,
       name: log.displayName,
+      door,
     };
   }
 
@@ -90,7 +93,7 @@ export async function publicDoorAllow(id: string) {
     status: "approved",
   });
   await publishGateEvent({ type: "pending" });
-  await publishDoorOpen("visitor-approve");
+  const door = await requestDoorOpen("visitor-approve");
   return {
     ok: true as const,
     already: false,
@@ -98,6 +101,7 @@ export async function publicDoorAllow(id: string) {
     id: String(log._id),
     status: "approved" as const,
     name: log.displayName,
+    door,
   };
 }
 

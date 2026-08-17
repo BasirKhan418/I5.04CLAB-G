@@ -30,5 +30,6 @@ export async function POST(request: Request) {
     id: result.id,
     status: result.status,
     already: result.already,
+    door: "door" in result ? result.door : undefined,
   });
 }

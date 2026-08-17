@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
+import { DoorPresenceProvider } from "@/components/door-presence-provider";
 import { SiteJsonLd } from "@/components/site-json-ld";
 import {
   getSiteUrl,
@@ -117,7 +118,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col overflow-x-hidden bg-cream text-ink font-sans">
         <SiteJsonLd />
-        {children}
+        <DoorPresenceProvider>{children}</DoorPresenceProvider>
       </body>
     </html>
   );

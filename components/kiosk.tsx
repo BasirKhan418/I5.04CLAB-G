@@ -278,6 +278,7 @@ export function Kiosk() {
       name: string;
       already?: boolean;
       at?: string;
+      door?: { status: "sent" | "queued"; online: boolean };
     }>("/api/gate/allow", {
       method: "POST",
       body: JSON.stringify({ direction }),
@@ -308,10 +309,14 @@ export function Kiosk() {
       return;
     }
     burst(direction === "in" ? "open" : "out", direction === "in");
+    const queued =
+      res.data.door?.status === "queued"
+        ? " Door is offline — it will open within 1 minute if the lock comes back."
+        : "";
     setMessage(
       direction === "in"
-        ? `Welcome in, ${res.data.name}.`
-        : `See you next time, ${res.data.name}.`
+        ? `Welcome in, ${res.data.name}.${queued}`
+        : `See you next time, ${res.data.name}.${queued}`
     );
   }
 

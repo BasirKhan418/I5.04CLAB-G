@@ -9,7 +9,8 @@ import {
 } from "react";
 import { AddMemberModal } from "@/components/add-member-modal";
 import { DoorOpenModal } from "@/components/door-open-modal";
-import { useDoorPresence, type DoorPresenceView } from "@/hooks/use-door-presence";
+import { useDoorPresence } from "@/components/door-presence-provider";
+import type { DoorPresenceView } from "@/hooks/use-door-presence";
 import { useGateStream } from "@/hooks/use-gate-stream";
 import { api, cn } from "@/lib/utils";
 

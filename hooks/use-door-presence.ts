@@ -6,20 +6,24 @@ import {
   type DoorPresence,
 } from "@/lib/door-presence-types";
 
-export type DoorPresenceView = DoorPresence & { live: boolean };
+export type DoorPresenceView = DoorPresence & {
+  live: boolean;
+  ready: boolean;
+};
 
 function applyPresence(
   current: DoorPresenceView,
   next: DoorPresence,
   live: boolean
 ): DoorPresenceView {
-  return { ...current, ...next, live };
+  return { ...current, ...next, live, ready: true };
 }
 
-export function useDoorPresence(): DoorPresenceView {
+export function useDoorPresenceStream(): DoorPresenceView {
   const [presence, setPresence] = useState<DoorPresenceView>({
     ...emptyDoorPresence(),
     live: false,
+    ready: false,
   });
   const sourceRef = useRef<EventSource | null>(null);
   const retryRef = useRef(0);
