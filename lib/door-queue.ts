@@ -51,7 +51,7 @@ function jobAgeMs(job: Job<DoorOpenJob>) {
 
 async function dropStaleJobs() {
   const queue = getDoorOpenQueue();
-  const waiting = await queue.getJobs(["waiting", "delayed", "paused"]);
+  const waiting = await queue.getJobs(["waiting", "delayed"]);
   await Promise.all(
     waiting
       .filter((job) => jobAgeMs(job) > DOOR_OPEN_TTL_MS)

@@ -1,7 +1,6 @@
 "use client";
 
 import { BrutalCard } from "@/components/brutal";
-import { useAdminUi } from "@/components/admin-ui";
 import { useDoorPresence } from "@/components/door-presence-provider";
 import { cn } from "@/lib/utils";
 import type { DoorPresence } from "@/lib/door-presence-types";
@@ -11,7 +10,7 @@ function deviceLabel(count: number) {
 }
 
 export function DoorStatusCard() {
-  const { door } = useAdminUi();
+  const door = useDoorPresence();
   const status = !door.ready
     ? "…"
     : !door.configured
@@ -97,7 +96,7 @@ export function DoorStatusMark({
 }
 
 export function DoorStatusPill() {
-  const { door } = useAdminUi();
+  const door = useDoorPresence();
   return <DoorStatusMark door={door} />;
 }
 
