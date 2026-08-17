@@ -1,6 +1,7 @@
-import { jsonError, requireSession } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import {
   getDoorPresence,
+  publicDoorPresence,
   subscribeDoorPresence,
   type DoorPresence,
 } from "@/lib/door-presence";
@@ -9,11 +10,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const auth = await requireSession();
-  if ("response" in auth) {
-    return auth.response;
-  }
-
   const encoder = new TextEncoder();
   let snapshot: DoorPresence;
   try {
@@ -27,7 +23,9 @@ export async function GET(request: Request) {
       const send = (presence: DoorPresence) => {
         try {
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(presence)}\n\n`)
+            encoder.encode(
+              `data: ${JSON.stringify(publicDoorPresence(presence))}\n\n`
+            )
           );
         } catch {
           /* stream closed */

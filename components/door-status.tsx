@@ -2,7 +2,7 @@
 
 import { BrutalCard } from "@/components/brutal";
 import { useAdminUi } from "@/components/admin-ui";
-import { usePublicDoorPresence } from "@/hooks/use-door-presence";
+import { useDoorPresence } from "@/hooks/use-door-presence";
 import { cn } from "@/lib/utils";
 import type { DoorPresence } from "@/lib/door-presence-types";
 
@@ -88,6 +88,6 @@ export function DoorStatusPill() {
 }
 
 export function KioskDoorStatus() {
-  const door = usePublicDoorPresence();
+  const door = useDoorPresence();
   return <DoorStatusMark door={door} />;
 }

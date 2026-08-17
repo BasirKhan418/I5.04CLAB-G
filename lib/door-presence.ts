@@ -81,6 +81,15 @@ export async function getDoorPresence(): Promise<DoorPresence> {
   return emptyDoorPresence(configured);
 }
 
+export function publicDoorPresence(presence: DoorPresence) {
+  return {
+    online: presence.online,
+    clients: presence.clients,
+    configured: presence.configured,
+    updatedAt: presence.updatedAt,
+  };
+}
+
 export function subscribeDoorPresence(onEvent: (presence: DoorPresence) => void) {
   const configured = Boolean(getEnv().doorDeviceToken);
   const sub = new IORedis(getEnv().redisUrl, {

@@ -5,7 +5,6 @@ import {
   emptyDoorPresence,
   type DoorPresence,
 } from "@/lib/door-presence-types";
-import { api } from "@/lib/utils";
 
 export type DoorPresenceView = DoorPresence & { live: boolean };
 
@@ -15,39 +14,6 @@ function applyPresence(
   live: boolean
 ): DoorPresenceView {
   return { ...current, ...next, live };
-}
-
-export function usePublicDoorPresence(): DoorPresenceView {
-  const [presence, setPresence] = useState<DoorPresenceView>({
-    ...emptyDoorPresence(),
-    live: false,
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function pull() {
-      const res = await api<DoorPresence>("/api/door/status");
-      if (cancelled || !res.ok) return;
-      setPresence((current) => applyPresence(current, res.data, true));
-    }
-
-    void pull();
-    const poll = window.setInterval(() => {
-      if (document.visibilityState === "visible") void pull();
-    }, 8000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void pull();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      cancelled = true;
-      window.clearInterval(poll);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, []);
-
-  return presence;
 }
 
 export function useDoorPresence(): DoorPresenceView {
@@ -61,12 +27,6 @@ export function useDoorPresence(): DoorPresenceView {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function pull() {
-      const res = await api<DoorPresence>("/api/door/status");
-      if (cancelled || !res.ok) return;
-      setPresence((current) => applyPresence(current, res.data, current.live));
-    }
 
     function clearTimer() {
       if (timerRef.current != null) {
@@ -110,27 +70,24 @@ export function useDoorPresence(): DoorPresenceView {
         setPresence((current) => ({ ...current, live: false }));
         source.close();
         sourceRef.current = null;
-        void pull();
         scheduleReconnect();
       };
     }
 
-    void pull();
     connect();
 
-    const poll = window.setInterval(() => {
-      if (document.visibilityState === "visible") void pull();
-    }, 10000);
-
     const onVisible = () => {
-      if (document.visibilityState === "visible") void pull();
+      if (document.visibilityState !== "visible") return;
+      const source = sourceRef.current;
+      if (!source || source.readyState === EventSource.CLOSED) {
+        connect();
+      }
     };
     document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       cancelled = true;
       clearTimer();
-      window.clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
       sourceRef.current?.close();
       sourceRef.current = null;
