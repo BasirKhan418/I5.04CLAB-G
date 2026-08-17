@@ -16,8 +16,9 @@ import { verifyCamTicket, verifySession } from "../lib/jwt";
 type DoorSocket = WebSocket & { misses?: number; device?: string };
 
 const HEARTBEAT_MS = 15_000;
-const MAX_MISSES = 4;
+const MAX_MISSES = 8;
 const JPEG_SOI = Buffer.from([0xff, 0xd8]);
+const DOOR_MAX_PAYLOAD = CAM_MAX_FRAME_BYTES + 4096;
 
 function tokenFromRequest(url: URL, headers: NodeJS.Dict<string | string[]>) {
   const query = url.searchParams.get("token")?.trim();
@@ -118,9 +119,9 @@ async function main() {
     }
   }
 
-  function tellDoorCamOn() {
+  function tellDoorCam(on: boolean) {
     for (const socket of clients) {
-      send(socket, { type: "cam-on" });
+      send(socket, { type: on ? "cam-on" : "cam-off" });
     }
   }
 
@@ -174,10 +175,12 @@ async function main() {
   const doorWss = new WebSocketServer({
     noServer: true,
     perMessageDeflate: false,
+    maxPayload: DOOR_MAX_PAYLOAD,
   });
   const camWss = new WebSocketServer({
     noServer: true,
     perMessageDeflate: false,
+    maxPayload: DOOR_MAX_PAYLOAD,
   });
 
   httpServer.on("upgrade", (req, socket, head) => {
@@ -216,8 +219,11 @@ async function main() {
       holdMs: env.doorOpenMs,
       heartbeatMs: HEARTBEAT_MS,
       cam: true,
+      stream: "on-demand",
     });
-    send(socket, { type: "cam-on" });
+    if (viewers.size > 0) {
+      send(socket, { type: "cam-on" });
+    }
     console.info(`door client connected (${liveSockets().length} live)`);
     void publishPresence();
 
@@ -260,8 +266,7 @@ async function main() {
       void publishPresence();
     });
     socket.on("error", () => {
-      clients.delete(socket);
-      void publishPresence();
+      /* close handler removes the socket; do not drop a live board here */
     });
   });
 
@@ -288,15 +293,22 @@ async function main() {
           /* next live frame will follow */
         }
       }
-      tellDoorCamOn();
+      if (viewers.size === 1) {
+        tellDoorCam(true);
+      }
       console.info(`cam viewer connected (${viewers.size} watching)`);
 
       socket.on("close", () => {
         viewers.delete(socket);
         console.info(`cam viewer left (${viewers.size} watching)`);
+        if (viewers.size === 0) {
+          lastFrame = null;
+          lastFrameAt = 0;
+          tellDoorCam(false);
+        }
       });
       socket.on("error", () => {
-        viewers.delete(socket);
+        /* close handler updates viewers */
       });
     })();
   });
@@ -315,11 +327,6 @@ async function main() {
         continue;
       }
       send(socket, { type: "ping" });
-      try {
-        socket.ping();
-      } catch {
-        /* ESP32 may ignore RFC ping; JSON ping above is the real keepalive */
-      }
     }
     for (const viewer of viewers) {
       if (viewer.readyState !== WebSocket.OPEN) {

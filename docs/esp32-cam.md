@@ -2,7 +2,7 @@
 
 This is for the **AI-Thinker ESP32-CAM** with the **OV2640 already soldered on the board**. Do not wire a separate camera. The sketch uses that onboard sensor.
 
-The board stays connected to this server over WSS for unlock commands **and** pushes JPEG frames when someone is watching.
+The board stays connected to this server over WSS for unlock commands. It pushes JPEG frames **only while someone is watching** (`cam-on` / `cam-off`). Leave the camera off the rest of the time so the lock socket does not drop.
 
 The board’s LAN IP is never exposed. The browser never talks to `http://10.x.x.x:81/stream`.
 
@@ -52,14 +52,22 @@ Same door JSON as before, plus camera:
 Server → board on connect:
 
 ```json
-{ "type": "hello", "holdMs": 2500, "heartbeatMs": 15000, "cam": true }
+{ "type": "hello", "holdMs": 2500, "heartbeatMs": 15000, "cam": true, "stream": "on-demand" }
 ```
+
+Do **not** start the camera from `hello` or `"cam": true`. Wait for:
 
 ```json
 { "type": "cam-on" }
 ```
 
-The board keeps streaming JPEG frames all the time while the WSS link is up. There is no `cam-off`.
+Stop frames on:
+
+```json
+{ "type": "cam-off" }
+```
+
+Flash the lock-first sketch in `firmware/esp32-cam-door/esp32-cam-door.ino`. Default is **1 fps** and only while `cam-on`. Do not send JPEG on connect.
 
 Unlock is unchanged:
 
@@ -69,6 +77,8 @@ Unlock is unchanged:
 
 ## Arduino IDE
 
+Flash **`firmware/esp32-cam-door/esp32-cam-door.ino`** (canonical). The sketch below is the same contract if you paste from here.
+
 - Board: **AI Thinker ESP32-CAM**
 - PSRAM: **Enabled**
 - Partition: Huge APP
@@ -76,7 +86,7 @@ Unlock is unchanged:
 
 Upload with an FTDI adapter: GPIO 0 to GND while flashing, then remove GPIO 0 and reset.
 
-Replace `WIFI_SSID`, `WIFI_PASS`, and `DOOR_TOKEN`.
+Replace `WIFI_SSID`, `WIFI_PASS`, and `DOOR_TOKEN`. Do not commit those values.
 
 ```cpp
 #include "esp_camera.h"
@@ -113,7 +123,7 @@ const int PIN_IDLE_LOW = 14;     // same as before
 
 const int DEFAULT_HOLD_MS = 2500;
 const unsigned long HEARTBEAT_MS = 15000;
-const unsigned long FRAME_MS = 250;
+const unsigned long FRAME_MS = 1000;
 
 WebSocketsClient webSocket;
 
@@ -122,7 +132,7 @@ unsigned long lastFrame = 0;
 unsigned long pulseUntil = 0;
 bool doorOpen = false;
 bool socketReady = false;
-bool camWanted = true;
+bool camWanted = false;
 
 const char* level(int pin) {
   return digitalRead(pin) ? "HIGH" : "LOW";
@@ -183,7 +193,10 @@ void handleText(const String& data) {
   Serial.print("WS IN: ");
   Serial.println(data);
 
-  if (data.indexOf("\"cam-on\"") >= 0 || data.indexOf("\"cam\":true") >= 0) {
+  if (data.indexOf("\"cam-off\"") >= 0) {
+    camWanted = false;
+    Serial.println("CAM OFF");
+  } else if (data.indexOf("\"cam-on\"") >= 0) {
     camWanted = true;
     Serial.println("CAM ON");
   }
@@ -210,6 +223,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_CONNECTED:
       socketReady = true;
+      camWanted = false;
       lastHeartbeat = millis();
       Serial.println("WSS CONNECTION SUCCESSFUL");
       webSocket.sendTXT("{\"type\":\"hello\",\"device\":\"esp32-cam-door-1\"}");
@@ -316,27 +330,28 @@ void setup() {
   String path = String("/door?token=") + DOOR_TOKEN;
   webSocket.beginSSL(DOOR_HOST, DOOR_PORT, path.c_str());
   webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(5000);
+  webSocket.setReconnectInterval(3000);
+  webSocket.enableHeartbeat(30000, 5000, 3);
 }
 
 void loop() {
   serviceDoor();
 
+  webSocket.loop();
+
   if (WiFi.status() != WL_CONNECTED) {
     socketReady = false;
+    camWanted = false;
     WiFi.reconnect();
-    delay(500);
     return;
   }
-
-  webSocket.loop();
 
   if (socketReady && millis() - lastHeartbeat >= HEARTBEAT_MS) {
     lastHeartbeat = millis();
     webSocket.sendTXT("{\"type\":\"ping\"}");
   }
 
-  if (socketReady && camWanted && millis() - lastFrame >= FRAME_MS) {
+  if (socketReady && camWanted && !doorOpen && millis() - lastFrame >= FRAME_MS) {
     lastFrame = millis();
     sendFrame();
   }
@@ -380,4 +395,4 @@ location /cam {
 }
 ```
 
-Restart `npm run door` after pulling this, then flash the sketch, then open `/dashboard/camera`. Serial should show `CAM ON` and the page should go **Live**.
+Restart `npm run door` after pulling this, then flash `firmware/esp32-cam-door/esp32-cam-door.ino`. Serial should show `WSS CONNECTION SUCCESSFUL` and stay there. Open `/dashboard/camera` only when you need video — Serial then shows `CAM ON`. Leave that page and it should print `CAM OFF`. The lock stays connected either way.

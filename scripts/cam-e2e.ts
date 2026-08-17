@@ -138,11 +138,15 @@ async function main() {
       "door hello"
     );
     const hello = doorMsgs.texts.find((m) => m.type === "hello");
-    if (hello?.cam !== true) fail("hello.cam should be true (camera always on)");
+    if (hello?.cam !== true) fail("hello.cam should be true (camera capable)");
+    if (hello?.stream !== "on-demand") fail("hello.stream should be on-demand");
     if (hello?.holdMs !== 2500 && typeof hello?.holdMs !== "number") {
       fail("hello missing holdMs");
     }
-    console.log("4. fake ESP32 connected, got hello");
+    if (doorMsgs.texts.some((m) => m.type === "cam-on")) {
+      fail("must not send cam-on before a viewer joins");
+    }
+    console.log("4. fake ESP32 connected, got hello, camera idle");
 
     door.send(JSON.stringify({ type: "ping" }));
     await waitUntil(
@@ -168,7 +172,7 @@ async function main() {
       () => doorMsgs.texts.some((m) => m.type === "cam-on"),
       "cam-on to board"
     );
-    console.log("6. viewer connected, camera stays on");
+    console.log("6. first viewer → cam-on");
 
     const jpeg1 = Buffer.concat([
       Buffer.from([0xff, 0xd8]),
@@ -235,15 +239,66 @@ async function main() {
       cam: health.cam,
     }));
 
+    const jpegIdle = Buffer.concat([
+      Buffer.from([0xff, 0xd8]),
+      Buffer.from("STRAY-WHILE-WATCHING"),
+      Buffer.from([0xff, 0xd9]),
+    ]);
+    door.send(jpegIdle, { binary: true });
+    await waitUntil(
+      () => viewMsgs.bins.some((b) => b.equals(jpegIdle)),
+      "stray jpeg while watching"
+    );
+
     viewer.close();
     viewer2.close();
-    await sleep(400);
-    if (doorMsgs.texts.some((m) => m.type === "cam-off")) {
-      fail("camera must stay on after viewers leave");
+    await waitUntil(
+      () => doorMsgs.texts.some((m) => m.type === "cam-off"),
+      "cam-off after last viewer"
+    );
+    console.log("11. last viewer left → cam-off");
+
+    door.send(JSON.stringify({ type: "ping" }));
+    await waitUntil(
+      () => doorMsgs.texts.filter((m) => m.type === "pong").length >= 2,
+      "pong after cam-off"
+    );
+    const stray = Buffer.concat([
+      Buffer.from([0xff, 0xd8]),
+      Buffer.from("STRAY-NO-VIEWERS"),
+      Buffer.from([0xff, 0xd9]),
+    ]);
+    door.send(stray, { binary: true });
+    await sleep(200);
+    if (door.readyState !== WebSocket.OPEN) {
+      fail("door socket dropped after idle JPEG");
     }
-    console.log("11. viewers left, camera still on");
+    console.log("12. lock socket stayed up after cam-off + stray JPEG");
 
     door.close();
+    await onceClose(door);
+
+    const door2 = new WebSocket(`${BASE}/door?token=${encodeURIComponent(token)}`);
+    const door2Msgs = collect(door2);
+    await new Promise<void>((resolve, reject) => {
+      door2.on("open", () => resolve());
+      door2.on("error", reject);
+    });
+    await waitUntil(
+      () => door2Msgs.texts.some((m) => m.type === "hello"),
+      "reconnect hello"
+    );
+    if (door2Msgs.texts.some((m) => m.type === "cam-on")) {
+      fail("reconnect must stay idle with no viewers");
+    }
+    door2.send(JSON.stringify({ type: "ping" }));
+    await waitUntil(
+      () => door2Msgs.texts.some((m) => m.type === "pong"),
+      "reconnect pong"
+    );
+    door2.close();
+    console.log("13. board reconnect stays JSON-only until a viewer joins");
+
     console.log("\nAll door/camera e2e checks passed.");
   } finally {
     stop();
