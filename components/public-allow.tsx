@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Logo } from "@/components/brand";
+import { KioskDoorStatus } from "@/components/door-status";
 import { BrutalButton, BrutalCard } from "@/components/brutal";
 import { ConfettiBurst, GpayMark } from "@/components/gate-celebrate";
 import { playDeniedSound, playGateOpenSound, unlockKioskAudio } from "@/lib/kiosk-audio";
@@ -55,8 +56,9 @@ export function PublicAllow({
   return (
     <div className="relative min-h-dvh">
       <ConfettiBurst fire={confetti} />
-      <header className="mx-auto flex w-full max-w-md items-center px-4 py-4">
+      <header className="mx-auto flex w-full max-w-md items-center justify-between gap-3 px-4 py-4">
         <Logo href="/" />
+        <KioskDoorStatus />
       </header>
       <main className="mx-auto w-full max-w-md px-4 pb-10">
         <BrutalCard className="mt-8 p-6 text-center sm:p-8">

@@ -17,6 +17,39 @@ function applyPresence(
   return { ...current, ...next, live };
 }
 
+export function usePublicDoorPresence(): DoorPresenceView {
+  const [presence, setPresence] = useState<DoorPresenceView>({
+    ...emptyDoorPresence(),
+    live: false,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pull() {
+      const res = await api<DoorPresence>("/api/door/status");
+      if (cancelled || !res.ok) return;
+      setPresence((current) => applyPresence(current, res.data, true));
+    }
+
+    void pull();
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") void pull();
+    }, 8000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void pull();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
+  return presence;
+}
+
 export function useDoorPresence(): DoorPresenceView {
   const [presence, setPresence] = useState<DoorPresenceView>({
     ...emptyDoorPresence(),

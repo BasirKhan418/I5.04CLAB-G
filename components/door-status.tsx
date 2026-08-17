@@ -2,7 +2,9 @@
 
 import { BrutalCard } from "@/components/brutal";
 import { useAdminUi } from "@/components/admin-ui";
+import { usePublicDoorPresence } from "@/hooks/use-door-presence";
 import { cn } from "@/lib/utils";
+import type { DoorPresence } from "@/lib/door-presence-types";
 
 function deviceLabel(count: number) {
   return count === 1 ? "1 device" : `${count} devices`;
@@ -42,8 +44,13 @@ export function DoorStatusCard() {
   );
 }
 
-export function DoorStatusPill() {
-  const { door } = useAdminUi();
+export function DoorStatusMark({
+  door,
+  className,
+}: {
+  door: Pick<DoorPresence, "online" | "clients" | "configured">;
+  className?: string;
+}) {
   const status = !door.configured
     ? "Door · —"
     : door.online
@@ -52,11 +59,14 @@ export function DoorStatusPill() {
 
   return (
     <p
-      className="flex shrink-0 items-center gap-1.5 text-xs text-ink/45"
+      className={cn(
+        "flex shrink-0 items-center gap-1.5 text-xs text-ink/45",
+        className
+      )}
       title={
         door.online
-          ? `${deviceLabel(door.clients)} connected with the door token`
-          : "No door device connected"
+          ? `${deviceLabel(door.clients)} connected`
+          : "Door lock is offline"
       }
     >
       <span
@@ -66,10 +76,18 @@ export function DoorStatusPill() {
         )}
         aria-hidden
       />
-      <span className="sm:hidden">
-        {door.online ? `On · ${door.clients}` : "Off"}
-      </span>
+      <span className="sm:hidden">{door.online ? "Online" : "Offline"}</span>
       <span className="hidden sm:inline">{status}</span>
     </p>
   );
+}
+
+export function DoorStatusPill() {
+  const { door } = useAdminUi();
+  return <DoorStatusMark door={door} />;
+}
+
+export function KioskDoorStatus() {
+  const door = usePublicDoorPresence();
+  return <DoorStatusMark door={door} />;
 }

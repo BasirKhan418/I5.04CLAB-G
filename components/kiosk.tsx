@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand";
+import { KioskDoorStatus } from "@/components/door-status";
 import { FollowEyes } from "@/components/follow-eyes";
 import {
   BrutalButton,
@@ -403,12 +404,15 @@ export function Kiosk() {
 
       <header className="relative z-10 mx-auto flex w-full max-w-lg items-center justify-between gap-3 px-4 py-4 sm:max-w-xl">
         <Logo />
-        <Link
-          href="/dashboard"
-          className="shrink-0 text-sm font-medium text-ink/50 underline-offset-4 hover:text-ink hover:underline"
-        >
-          Staff
-        </Link>
+        <div className="flex shrink-0 items-center gap-3">
+          <KioskDoorStatus />
+          <Link
+            href="/dashboard"
+            className="text-sm font-medium text-ink/50 underline-offset-4 hover:text-ink hover:underline"
+          >
+            Staff
+          </Link>
+        </div>
       </header>
 
       <main className="relative z-10 mx-auto flex w-full max-w-lg flex-col items-center px-4 pb-10 sm:max-w-xl">
