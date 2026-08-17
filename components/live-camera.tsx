@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef } from "react";
+import Link from "next/link";
 import { Camera } from "lucide-react";
+import { useAdminUi } from "@/components/admin-ui";
 import { cn } from "@/lib/utils";
 import { useCamStream, type CamStatus } from "@/hooks/use-cam-stream";
 
@@ -13,6 +15,26 @@ const labels: Record<CamStatus, string> = {
   error: "Sign in required",
 };
 
+export function DashboardCameraPreview() {
+  const { door } = useAdminUi();
+  if (!door.online) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-end justify-between gap-3">
+        <p className="text-sm font-medium text-ink/50">Door camera</p>
+        <Link
+          href="/dashboard/camera"
+          className="text-sm font-semibold text-lab-red"
+        >
+          Full view
+        </Link>
+      </div>
+      <LiveCamera compact />
+    </div>
+  );
+}
+
 export function LiveCamera({
   className,
   compact = false,
@@ -20,8 +42,18 @@ export function LiveCamera({
   className?: string;
   compact?: boolean;
 }) {
+  const { door } = useAdminUi();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { status, hasFrame } = useCamStream(true, canvasRef);
+  const { status, hasFrame } = useCamStream(door.online, canvasRef);
+
+  if (!door.online) {
+    if (compact) return null;
+    return (
+      <p className="text-sm text-ink/50">
+        Door is offline. The camera preview shows only when a board is connected.
+      </p>
+    );
+  }
 
   return (
     <div
