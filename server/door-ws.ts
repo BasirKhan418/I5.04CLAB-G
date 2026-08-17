@@ -1,19 +1,23 @@
 import "dotenv/config";
-import { createServer } from "http";
+import { createServer, type IncomingMessage } from "http";
 import type { Socket } from "net";
 import IORedis from "ioredis";
-import { WebSocket, WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer, type RawData } from "ws";
 import {
+  CAM_MAX_FRAME_BYTES,
   DOOR_CHANNEL,
   DOOR_PRESENCE_CHANNEL,
   DOOR_PRESENCE_KEY,
+  SESSION_COOKIE,
 } from "../lib/constants";
 import { getEnv } from "../lib/env";
+import { verifyCamTicket, verifySession } from "../lib/jwt";
 
 type DoorSocket = WebSocket & { misses?: number; device?: string };
 
 const HEARTBEAT_MS = 15_000;
 const MAX_MISSES = 4;
+const JPEG_SOI = Buffer.from([0xff, 0xd8]);
 
 function tokenFromRequest(url: URL, headers: NodeJS.Dict<string | string[]>) {
   const query = url.searchParams.get("token")?.trim();
@@ -28,6 +32,15 @@ function tokenFromRequest(url: URL, headers: NodeJS.Dict<string | string[]>) {
   return "";
 }
 
+function cookieValue(cookieHeader: string | undefined, name: string) {
+  if (!cookieHeader) return "";
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(rest.join("="));
+  }
+  return "";
+}
+
 function send(socket: WebSocket, payload: unknown) {
   if (socket.readyState !== WebSocket.OPEN) return;
   try {
@@ -37,10 +50,28 @@ function send(socket: WebSocket, payload: unknown) {
   }
 }
 
+function asBuffer(raw: RawData) {
+  if (Buffer.isBuffer(raw)) return raw;
+  if (Array.isArray(raw)) return Buffer.concat(raw);
+  return Buffer.from(raw);
+}
+
+function isJpeg(buf: Buffer) {
+  return buf.length >= 2 && buf[0] === JPEG_SOI[0] && buf[1] === JPEG_SOI[1];
+}
+
 function hardenTcp(socket: Socket) {
   socket.setKeepAlive(true, 10_000);
   socket.setNoDelay(true);
   socket.setTimeout(0);
+}
+
+async function viewerAllowed(req: IncomingMessage, url: URL) {
+  const ticket = url.searchParams.get("ticket")?.trim();
+  if (ticket && (await verifyCamTicket(ticket))) return true;
+  const session = cookieValue(req.headers.cookie, SESSION_COOKIE);
+  if (session && (await verifySession(session))) return true;
+  return false;
 }
 
 async function main() {
@@ -50,6 +81,9 @@ async function main() {
   }
 
   const clients = new Set<DoorSocket>();
+  const viewers = new Set<WebSocket>();
+  let lastFrame: Buffer | null = null;
+  let lastFrameAt = 0;
   const pub = new IORedis(env.redisUrl, {
     maxRetriesPerRequest: null,
     retryStrategy: (times: number) => Math.min(1000 * times, 8000),
@@ -84,6 +118,26 @@ async function main() {
     }
   }
 
+  function tellDoorCamOn() {
+    for (const socket of clients) {
+      send(socket, { type: "cam-on" });
+    }
+  }
+
+  function broadcastFrame(buf: Buffer) {
+    lastFrame = buf;
+    lastFrameAt = Date.now();
+    for (const viewer of viewers) {
+      if (viewer.readyState !== WebSocket.OPEN) continue;
+      if (viewer.bufferedAmount > 0) continue;
+      try {
+        viewer.send(buf, { binary: true });
+      } catch {
+        /* keep going */
+      }
+    }
+  }
+
   const httpServer = createServer((req, res) => {
     if (req.url?.startsWith("/health")) {
       const snapshot = presenceSnapshot();
@@ -97,6 +151,12 @@ async function main() {
           online: snapshot.online,
           clients: snapshot.clients,
           devices: snapshot.devices,
+          viewers: viewers.size,
+          cam: {
+            live: Boolean(lastFrame) && Date.now() - lastFrameAt < 8_000,
+            lastFrameAt: lastFrameAt || null,
+            bytes: lastFrame?.length ?? 0,
+          },
           uptime: Math.round(process.uptime()),
         })
       );
@@ -111,14 +171,36 @@ async function main() {
   httpServer.requestTimeout = 0;
   httpServer.timeout = 0;
 
-  const wss = new WebSocketServer({
-    server: httpServer,
-    path: "/door",
+  const doorWss = new WebSocketServer({
+    noServer: true,
     perMessageDeflate: false,
-    clientTracking: true,
+  });
+  const camWss = new WebSocketServer({
+    noServer: true,
+    perMessageDeflate: false,
   });
 
-  wss.on("connection", (socket: DoorSocket, req) => {
+  httpServer.on("upgrade", (req, socket, head) => {
+    if (req.socket) hardenTcp(req.socket);
+    const host = req.headers.host ?? "localhost";
+    const url = new URL(req.url ?? "/", `http://${host}`);
+    if (url.pathname === "/door") {
+      doorWss.handleUpgrade(req, socket, head, (ws) => {
+        doorWss.emit("connection", ws, req);
+      });
+      return;
+    }
+    if (url.pathname === "/cam") {
+      camWss.handleUpgrade(req, socket, head, (ws) => {
+        camWss.emit("connection", ws, req);
+      });
+      return;
+    }
+    socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+    socket.destroy();
+  });
+
+  doorWss.on("connection", (socket: DoorSocket, req) => {
     if (req.socket) hardenTcp(req.socket);
     const host = req.headers.host ?? "localhost";
     const url = new URL(req.url ?? "/door", `http://${host}`);
@@ -133,7 +215,9 @@ async function main() {
       type: "hello",
       holdMs: env.doorOpenMs,
       heartbeatMs: HEARTBEAT_MS,
+      cam: true,
     });
+    send(socket, { type: "cam-on" });
     console.info(`door client connected (${liveSockets().length} live)`);
     void publishPresence();
 
@@ -142,10 +226,17 @@ async function main() {
     };
 
     socket.on("pong", touch);
-    socket.on("message", (raw) => {
+    socket.on("message", (raw, isBinary) => {
       touch();
+      const buf = asBuffer(raw);
+      if (isBinary || isJpeg(buf)) {
+        if (buf.length > 0 && buf.length <= CAM_MAX_FRAME_BYTES && isJpeg(buf)) {
+          broadcastFrame(buf);
+        }
+        return;
+      }
       try {
-        const msg = JSON.parse(String(raw)) as {
+        const msg = JSON.parse(buf.toString("utf8")) as {
           type?: string;
           device?: string;
         };
@@ -174,6 +265,42 @@ async function main() {
     });
   });
 
+  camWss.on("connection", (socket, req) => {
+    void (async () => {
+      if (req.socket) hardenTcp(req.socket);
+      const host = req.headers.host ?? "localhost";
+      const url = new URL(req.url ?? "/cam", `http://${host}`);
+      if (!(await viewerAllowed(req, url))) {
+        socket.close(4001, "unauthorized");
+        return;
+      }
+
+      viewers.add(socket);
+      send(socket, {
+        type: "hello",
+        live: true,
+        viewers: viewers.size,
+      });
+      if (lastFrame && Date.now() - lastFrameAt < 2_000) {
+        try {
+          socket.send(lastFrame, { binary: true });
+        } catch {
+          /* next live frame will follow */
+        }
+      }
+      tellDoorCamOn();
+      console.info(`cam viewer connected (${viewers.size} watching)`);
+
+      socket.on("close", () => {
+        viewers.delete(socket);
+        console.info(`cam viewer left (${viewers.size} watching)`);
+      });
+      socket.on("error", () => {
+        viewers.delete(socket);
+      });
+    })();
+  });
+
   const heartbeat = setInterval(() => {
     for (const socket of clients) {
       if (socket.readyState !== WebSocket.OPEN) {
@@ -192,6 +319,17 @@ async function main() {
         socket.ping();
       } catch {
         /* ESP32 may ignore RFC ping; JSON ping above is the real keepalive */
+      }
+    }
+    for (const viewer of viewers) {
+      if (viewer.readyState !== WebSocket.OPEN) {
+        viewers.delete(viewer);
+        continue;
+      }
+      try {
+        viewer.ping();
+      } catch {
+        /* ignore */
       }
     }
     void publishPresence();
@@ -243,7 +381,15 @@ async function main() {
         /* ignore */
       }
     }
-    wss.close();
+    for (const viewer of viewers) {
+      try {
+        viewer.close(1001, "server stop");
+      } catch {
+        /* ignore */
+      }
+    }
+    doorWss.close();
+    camWss.close();
     httpServer.close();
     void sub.quit();
     void pub.quit();
@@ -255,6 +401,9 @@ async function main() {
   httpServer.listen(env.doorWsPort, "0.0.0.0", () => {
     console.info(
       `I5.04C Lab door socket ws://0.0.0.0:${env.doorWsPort}/door`
+    );
+    console.info(
+      `I5.04C Lab camera watch ws://0.0.0.0:${env.doorWsPort}/cam`
     );
   });
 }

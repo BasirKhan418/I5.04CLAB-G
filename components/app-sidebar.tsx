@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  Camera,
   LayoutDashboard,
   LogOut,
   ScanLine,
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/camera", label: "Camera", icon: Camera },
   { href: "/dashboard/logs", label: "Logs", icon: ScrollText },
   { href: "/dashboard/members", label: "Members", icon: Users, admin: true },
   {

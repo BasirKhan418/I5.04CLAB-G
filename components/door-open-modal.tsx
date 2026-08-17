@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { BrutalButton, BrutalTextarea } from "@/components/brutal";
+import { LiveCamera } from "@/components/live-camera";
 import { api } from "@/lib/utils";
 
 export function DoorOpenModal({
@@ -53,6 +54,7 @@ export function DoorOpenModal({
             not counted.
           </DialogDescription>
         </DialogHeader>
+        {open ? <LiveCamera compact className="mt-2" /> : null}
         <form onSubmit={submit} className="mt-2 space-y-3">
           <label className="block text-xs font-medium text-ink/50">
             Why are you opening it?

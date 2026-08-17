@@ -18,3 +18,5 @@ export const DOOR_CHANNEL = "lab-door";
 export const DOOR_PRESENCE_CHANNEL = "lab-door-presence";
 export const DOOR_PRESENCE_KEY = "lab-door:presence";
 export const DOOR_OPEN_MS = 2500;
+export const CAM_TICKET_SECONDS = 90;
+export const CAM_MAX_FRAME_BYTES = 160_000;
