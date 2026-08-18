@@ -4,7 +4,7 @@ I5.04C Lab access: a kiosk for visitors and members, a dashboard for staff, What
 
 Visitors ask to come in (name, reason, optional face and voice). Members get a WhatsApp ping and can allow from the dashboard or a public link. Members punch IN/OUT with email + PIN. Hours are **09:00–17:30 IST**. The lock is a pulse only — it does not log people in.
 
-ESP32 firmware and wiring: [docs/esp32-door.md](docs/esp32-door.md) (ESP32-S) or [docs/esp32-cam.md](docs/esp32-cam.md) (AI-Thinker ESP32-CAM + live feed).
+ESP32 firmware and wiring: [docs/esp32-door.md](docs/esp32-door.md). Lock-only sketch: `firmware/esp32-cam-door/esp32-cam-door.ino`. There is no door camera.
 
 ## What you need
 
@@ -114,7 +114,7 @@ Profile → WhatsApp number sends an OTP to **that** WhatsApp. Confirm it so the
 
 ## 6. ESP32 door WebSocket
 
-Firmware detail: [docs/esp32-door.md](docs/esp32-door.md) (plain ESP32) or [docs/esp32-cam.md](docs/esp32-cam.md) (ESP32-CAM live feed).
+Firmware detail: [docs/esp32-door.md](docs/esp32-door.md). Canonical sketch: `firmware/esp32-cam-door/esp32-cam-door.ino` (lock only, no camera).
 
 ### Server
 
@@ -186,16 +186,6 @@ location /door {
   proxy_send_timeout 86400s;
 }
 
-location /cam {
-  proxy_pass http://127.0.0.1:8787/cam;
-  proxy_http_version 1.1;
-  proxy_set_header Upgrade $http_upgrade;
-  proxy_set_header Connection "Upgrade";
-  proxy_set_header Host $host;
-  proxy_set_header Cookie $http_cookie;
-  proxy_read_timeout 86400s;
-  proxy_send_timeout 86400s;
-}
 ```
 
 ## 7. App map
@@ -204,8 +194,7 @@ location /cam {
 |---|---|---|
 | `/` | Anyone | Kiosk: visitor or member |
 | `/login` | Members | Email + PIN or email OTP |
-| `/dashboard` | Signed in | Who’s in, pending visitors (admin), door camera |
-| `/dashboard/camera` | Signed in | Live ESP32-CAM (relayed; board IP is private) |
+| `/dashboard` | Signed in | Who’s in, pending visitors (admin), door online |
 | `/dashboard/logs` | Signed in | Events + hours. Utility door opens do not count hours |
 | `/dashboard/members` | Admin | Roster |
 | `/dashboard/infrastructure` | Admin | OpenWA in Mongo |
@@ -231,7 +220,6 @@ Dashboard **Allow** (sidebar): reason → log as `utility` → pulse door. No ho
 - [ ] Infrastructure **Ready** if you want WhatsApp
 - [ ] `npm run door` — `/health` ok
 - [ ] ESP32 or `wscat` connected; Approve / Enter shows `open`
-- [ ] ESP32-CAM: `/dashboard/camera` shows **Live** after `CAM ON` on Serial
 - [ ] `PUBLIC_HOST` matches the URL people open (local or https)
 
 ## 10. Common misses
@@ -242,6 +230,5 @@ Dashboard **Allow** (sidebar): reason → log as `utility` → pulse door. No ho
 | No WhatsApp on visit | Worker not running, or Infrastructure not Ready |
 | Allow link 404 / wrong host | Set `PUBLIC_HOST` to the public origin, restart app + worker once |
 | Lock never clicks | `npm run door` not running, or ESP32 token / LAN IP wrong |
-| Camera stays offline | Board not sending JPEGs, nginx missing `/cam`, or door process old |
 | Door process exits | `DOOR_DEVICE_TOKEN` empty |
 | Hours look wrong | Do not edit `lib/hours.ts` window |

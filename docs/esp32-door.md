@@ -2,7 +2,7 @@
 
 The lab lock is an ESP32 (Arduino) that stays connected to this server. It does **not** log people in. It only pulses GPIO when the app says the door should open.
 
-If you are using an **AI-Thinker ESP32-CAM**, use [esp32-cam.md](./esp32-cam.md) instead. GPIO 25/26/27 are camera pins on that board.
+Lab board firmware (GPIO 12 / 13 / 14, WSS `/door`): `firmware/esp32-cam-door/esp32-cam-door.ino`. There is no live camera path. See [esp32-cam.md](./esp32-cam.md).
 
 Run the door socket next to `npm run dev` and `npm run worker`:
 

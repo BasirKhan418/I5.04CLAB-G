@@ -7,7 +7,6 @@ import { AccessLog } from "@/models/AccessLog";
 import Link from "next/link";
 import { BrutalCard } from "@/components/brutal";
 import { DoorStatusCard } from "@/components/door-status";
-import { DashboardCameraPreview } from "@/components/live-camera";
 import { PendingApprovals } from "@/components/pending-approvals";
 import {
   formatDuration,
@@ -75,8 +74,6 @@ export default async function DashboardPage() {
       ) : null}
 
       <PendingApprovals />
-
-      <DashboardCameraPreview />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {[
